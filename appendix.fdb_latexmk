@@ -1,0 +1,11 @@
+# Fdb version 3
+["lualatex"] 1749210749 "appendix.tex" "appendix.pdf" "appendix" 1749210749
+  "/usr/share/texlive/texmf-dist/tex/latex/base/ltluatex.lua" 1636758526 19214 9fefc6dff80101966499ea0d8ae2e503 ""
+  "/usr/share/texlive/texmf-dist/tex/latex/l3kernel/expl3.lua" 1642022539 15627 866398a1358608205cb87da529bd41e8 ""
+  "/usr/share/texlive/texmf-dist/tex/latex/latexconfig/lualatexquotejobname.lua" 1308175312 1031 977f79ff10b802fc398926378bec58e9 ""
+  "/var/lib/texmf/web2c/luahbtex/lualatex.fmt" 1710482078 4555352 4ab224e65cf1a9da0dc9de9bc0493b2c ""
+  "appendix.aux" 1749210749 32 3985256e7290058c681f74d7a3565a19 ""
+  "appendix.tex" 1530535290 99 297b88888391c78cd475a850bcb82292 ""
+  (generated)
+  "appendix.log"
+  "appendix.pdf"

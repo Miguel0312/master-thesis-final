@@ -1,0 +1,257 @@
+\chapter{Background}\label{chap:background}
+
+Given the way the problem can be formulated according to \hyperref[sec:problem]{Section 1.2}, the failure detection problem can be viewed as a classification problem.
+
+In this case the SMART attributes are the input variables.
+We have two classes: \textbf{good}, which corresponds to the disks that did not fail during the period that they were observed, and \textbf{bad}, which are the ones that did fail.  
+
+Therefore, machine learning approaches are the most appropriate to tackle the problem.
+In the literature, some of the machne learning methods used are Decision Trees, Random Forests, Recurrent Neural Network and Long Short-Term Memroy Networks.
+
+In the next few sections we will discuss how these approaches were implemented and the results that they obtained.
+
+\section{Decision Tree}\label{sec:decisiontree}
+
+Decision Trees represent a flowchart in the form of if-else statements.
+Because of this, one of their main advantages is the fact that it is fairly easy to interpret a decision tree and to understand how it works and how it arrives at its conclusions.
+
+Formally, a Decision Tree is a rooted tree $G = (V, E), E \subseteq V^2$.
+The leaves of the tree are labeled with one of the possible results of the decision problem.
+In our case, it will be either \textbf{good} or \textbf{bad}.
+
+The other nodes are called decision nodes.
+When evaluating an unseen sample, consists in traversing the tree starting from the root and taking a left or right child of the current node depending on the conditions in it until a leaf is reached, which corresponds to an output.
+
+For the following discussion, it may be useful to have at least a superficial understanding of the training process of a Decision Tree.
+The tree starts with a single node, the root, and all the training samples are placed there.
+The root is then added to a queue.
+
+While the queue is not empty, the first node in it is processed.
+The processing step starts by choosing a splitting value $c$ for each attribute.
+
+Then, for each attribute $i$, the samples are divided in two sets depending on wheter its value is bigger or smaller than a threshold value $c_i$.
+One way to obtain the threshold value is to compute the average of the attribute $i$ over the samples assigned to the node being processed.
+
+Then the algorithm computes which of the partitions maximize a certain criterion function.
+A common criterion to use here is the information gain, which is the opposite of the Shannon Entropy \cite{shannon1948mathematical}.
+
+Then, two new nodes and edges are created.
+The original node is then labeled by $(i, c_i)$ where $i$ is the index of the attribute that maximizes the criterion function.
+The training samples that were assigned to the node are they split between its two children according to the value of their attribute $i$.
+
+If some condition for one of the children is met such as a certain depth or all samples are in the same node, then the is not added to the queue.
+Instead, it is kept as a leaf with a label that corresponds to the class that appears most frequently in the samples assigned to it.
+
+Otherwise the node is added to the queue to be processed later.
+
+After being trained, when the tree needs to predict the class of a certain sample $x$ it will start traversing the tree from its root. 
+Then, at each non-leaf node, it will read the label $(i, c)$ and if $x_i$ is smaller than $c$ then the next node in the traversal is the left child, else it is the right child.
+
+The training and the evaluation processes are illustrated by \textbf{Algorithm \ref{algo:train-decision-tree}} and \textbf{Algorithm \ref{algo:test-decision-tree}} respectively.
+
+\begin{minipage}{0.92\textwidth}
+    \begin{algorithm}[H]
+        \caption{\textsc{TrainDecisionTree}($T$: train set)}\label{algo:train-decision-tree}
+        \SetKw{KwReturn}{return} % define some custom keywords
+        \SetKw{KwPrint}{print}
+        \SetKw{KwNot}{not}
+        \SetKw{KwTrue}{true}
+        \SetKwFor{While}{while}{do}{end while}
+        $r \gets Node()$, $q \gets Queue()$\;
+        $r.samples \gets T$\;
+        $q.push(r)$\;
+        \While{\KwNot $q.empty()$} {
+            $n \gets q.pop()$, $maxi \gets \infty$, $att \gets -1$\;
+            $c \gets -1$\;
+            \For{$i \gets 1$ \KwTo $m$} {
+                $c' \gets avg(n.samples, i)$\;
+                $s_1 \gets \{x \in n.samples \mid x_i \leq c'\}$\;
+                $s_2 \gets \{x \in n.samples \mid x_i > c'\}$\;
+                $gain = criterion(s_1, s_2)$\;
+                \If{$gain > maxi$}{
+                    $mini \gets gain$\;
+                    $att \gets i$\;
+                    $c \gets c'$\;
+                    $n.left.samples \gets s_1$, $n.right.samples \gets s_2$\;
+                }
+            }
+
+            $n.attribute \gets att$\;
+            $n.threshold \gets c$\;
+            
+            \For{child of $n$}{
+                \If{$shouldProcess(child)$} {
+                    $q.push(child)$\;
+                } \Else {
+                    $child.isLeaf \gets \KwTrue$\;
+                    $child.result = mostCommon(child.samples)$\;
+                }
+            }
+        }
+    \end{algorithm}
+\end{minipage}
+
+\begin{minipage}{0.92\textwidth}
+    \begin{algorithm}[H]
+        \caption{\textsc{EvaluateDecisionTree}($tree$: Decision Tree, $x$: sample)}\label{algo:test-decision-tree}
+        \SetKw{KwReturn}{return} % define some custom keywords
+        \SetKw{KwPrint}{print}
+        \SetKw{KwNot}{not}
+        \SetKw{KwTrue}{true}
+        \SetKwFor{While}{while}{do}{end while}
+        $cur \gets tree.root$\;
+        \While{\KwNot cur.isLeaf} {
+            \If{$x\left[cur.attribute\right] \leq cur.threshold$}{
+                $cur \gets cur.left$\;
+            } \Else {
+                $cur \gets cur.right$\;
+            }
+        }
+
+        \KwReturn cur.result\;
+    \end{algorithm}
+\end{minipage}
+
+
+The explicability of this model comes from the fact that when a sample is evaluated, the decision steps that resulted in the corresponding output can be followed, as show in \textbf{Algorithm \ref{algo:test-decision-tree}}.
+So, it is possible to verify which parameters are taken into account and to predict what would happen if one of then was changed.
+Therefore the impact of each attribute can be interpreted.
+
+Decision Trees come in two flavors: Classification and Regression Trees.
+The former corresponds to classifying samples in discrete, independent classes.
+So, Classification Trees will treat \textbf{good} and \textbf{bad} samples as different entities.
+
+Regression Trees are concerned in predicting a continuous value.
+So, they allow us to use the concept of health status.
+
+Suppose we try to give an integer score from $1$ to $m$ to each drive.
+The ones that do not fail correspond to a value of $m$ while the samples of the failing drive are given values from $1$ to $m-1$ depending on how close they are to the moment of the breakdown.
+Then a Regression Tree will not try to simply predict an integer from $1$ to $m$, intead it will try to find an exact value to it.
+
+We can explain the difference between the two approaches when using multiple classes as follows: imagine we have a training sample whose desired output value is $1$.
+Then, for the Classification Tree the error is the same when it puts it in the class $2$ and in the class $m$.
+
+On the other hand, a Regression Tree uses a mean squared error funcion, so even if it doesn't put the sample in the class $1$ it will consider it worse the cases in which it is put in class $m$ compared to when it is put in class $2$.
+It may even predict a value of $1.5$ to the sample, even though there is no sample in the training set with this value for the dependent variable.
+
+Compare this to the task of classifying a shape as a square, a triangle or a circle.
+Then, unless there is some additional issue specific to the context of the application, misclassifying a circle as a square is not worse than classifying it as a triangle
+.
+This fundamentally differs from the task of predicting a health status in which it is better to predict a $1.5$ to a sample whose expected output is $1$ than to predict a $5$ for example.
+
+% The challenge is then how to build a tree from a training set.
+% There are a few different methods, but most of them use the concept of entropy.
+% This is an idea from Information Theory and is defined as:
+
+% $$H(X) = -\sum_{x\in \chi}p(x)\log(p(x))$$
+
+% Where $X$ is a random discrete variable and $\chi$ represents the set of possible values of the variable $X$.
+% The entropy is a mathematical measure of uncertainty.
+% This is also used as a measure of information: a smaller entropy means that there is a better confidence on the value of the variable which corresponds to a bigger amount of information about it.
+
+% In our case, $X$ is a vector with $n$ components 
+
+Decision Trees were used by Li et al. \cite{Li14} in order to obtain an algorithm capable of predicting hard drive failure.
+They tested both Classification and Regression trees.
+
+In their approach, they were able to obtain an FDR of more than $95\%$ while keeping the FAR below $1\%$.
+
+Apart from the result in itself this work introduce some additional concepts that are useful for the implementation of other methods and is actually used by later researchers.
+First of all, they add a feature selection step that keeps only a subset of the SMART features passed as input.
+
+More interesting though is the fact that they add columns to their table.
+This corresponds to the variation of the value of certain features over an interval.
+It allows the algorithm to take into account the fact that the training samples for a specific hard drive represent a time series.
+
+More precisely, they choose a value for $T$.
+Let the samples for the $i^{th}$ hard drive be the list $x_i$ in which each entry corresponds to a sample and they are ordered in the order they were taken.
+Let $x_{i,j}[t]$ be the $j^{th}$ feature of the sample taken at instant $t$.
+Then the value of the new column for the vector $x_i[t]$ is:
+
+$$x_{i,n+j}[t] = x_{i,j}[t] - x_{i,j}[t-T], j \in \{0,\dots,n-1\}$$
+
+Where $n$ is the original number of features in the vector.
+
+This is an elegant way to include the time dependence aspect of the problem.
+The main advantage is that it can be applied to any method to try to improve methods that are not designed to work with time series.
+
+In their work, they also use a voting algorithm.
+This way, in order to classify an unseen hard drive, they take the last $N$ samples and evaluate each of them using the Decision Tree.
+If more than $\frac{N}{2}$ of them are put in the \textbf{bad} class, then the hard drive is classified as failing.
+
+However, their research on Decision Trees does not implement some other techniques used by other research projects and that could be included.
+For instance, they do not test different thresholds for the voting algorithm.
+They always use a ratio of $0.5$.
+
+In addition to that, they always train the model with a constant ratio between good and bad disks in the training set.
+For each $3$ \textbf{bad} ones, they include $7$ \textbf{good} ones.
+They do not study what happens if, for example, for each \textbf{bad} HD there are $10$ \textbf{good} ones, which more closely represents the real world scenario if no data is filtered.
+
+In the end, the results they obtained are promising.
+They obtained FARs below 0.5\% while keeping the FDR around 95\% for the Classification Tress.
+
+The Regression Tree model used a continuous value between $-1$ and $0$ as the health status value, linearly dependent on how much time before the breakdown of the drive is.
+This approach was able to increase the FDR by 1\% while also decreasing de FAR by around 0.2\% when compared to the Classification Tree implemented by them.
+
+\section{Random Forest}\label{sec:randomforest}
+
+One of the problems faced by Decision Trees, specially when they become large is overfitting \cite{ying2019overview}.
+This is due to the fact that the split values for each attribute used by the tree are directy taken from the values on the training set.
+So, when the tree is deep and there are only a few training samples in a node, the splitting values will sharply follow the ones in the training set.
+
+Another way to explain this is that since a Decision Tree can closely follow the patterns observed in the training set because it can choose the splitting threshold independently of the ancestor nodes in the tree, it presents a small bias.
+But in Machine Learning there is a principle known as the Bias-Variance tradeoff that states that a model with low bias will present a high variance and vice-versa \cite{briscoe2011conceptual}.
+
+More concretely, for our problem at hand, suppose that there are only a few samples in the training set with a certain cause of failure.
+During training, if they are in a node $\mathbf{N}$ and are mixed with other samples, we may be able to correctly put them in a leaf that is a child of $\mathbf{N}$.
+
+So, the model will have a good performance on the training set which corresponds to a small bias, since the expected and predicted value will be the same.
+However, imagine that when evaluating an unseen sample there is an attribute, that is not important, to identify this cause of failure, is slightly different from the values observed in the training set.
+
+Then, the path taken will not go through $\mathbf{N}$ and thus it won't go through the same evaluation process as samples that are simillar.
+As a result, a small change in a random attribute can cause a huge differnce on the path traversed and thus on the result.
+Having an algorithm that can behave very differently for slightly different inputs corresponds to a model that has a high variance.
+
+In order to tackle this, the concept of Random Forests has been introduced \cite{ho1995random}.
+The idea is to train multiple, independent Decision Trees at once, each one trained with a different subset of the training data.
+Notice that these subsets do not have to be disjoint, specially when the train set is relatively small.
+
+Random Forests have performed well for a variety of tasks, ranging from image recognition to Alzheimer's disease detection and prediction \cite{shaik2019brief}.
+
+The set of trees has, therefore, a smaller bias when compared to the one trained using all the data at once.
+This is due to the fact that we can reduce the probability of overfitting, since there will have a larger varierty of decision nodes.
+
+If we return to the example of a specific cause of failure, the training samples corresponding to it will not even necessarily be on the same tree anymore.
+So, there is a larger set of nodes that have been trained with samples corresponding to this failure.
+Therefore, the probability of going through one of them when traversing the tree is higher even if the unseen sample does not correspond perfectly.
+
+The drawback is that since the training samples with the same failure cause will be spread, the probability of having a node that had multiple ones when training is smaller, which can increase the error on the training set and on samples very simillar to the ones in the training set.
+
+Once the set of trees is created and trained, it remains to decide how to regroup all of them.
+
+The most common approach when asking for the model to predict the result for a sample is to take the value predicted by each tree and then combine them.
+For a classification problem, it can be returning the most common predicted class, while for a regression problem it can be done by taking the average of the outputs of the trees.
+
+This can be done quite efficiently, since, at each node, it suffices to compare the value of a specific attribute with a threshold and go to the corresponding child.
+Moreover, since the traversal processes are independent, they can even be done in parallel.
+
+A research by Shen et al. \cite{Shen18} used Random Forests for hard drive failure prediction.
+One of the most interesting aspects of their research is how they combined the results of the different tree of the forests.
+
+Instead of simply checking whether most trees had an output of \textbf{good} or \textbf{bad} for a specific sample, they giving different trees different weights based on a clustering algorithm.
+
+More specifically, they performed the clustering process for the good and bad samples independently.
+Then, when predicting the outcome for an unseen sample, the clusters $c_1$ and $c_2$ to which it would belong if it were a good or bad one are computed.
+
+Since it is known which samples of the training set were used to train each tree, it is possible to evaluate the accuracy of each tree for the training samples in $c_1$ and in $c_2$.
+Based on these accuracies, it is possible to give a bigger weight to trees that better learned the samples of the clusters to which the sample being evaluate belongs.
+
+They used a simple algorithm in which the weight of a tree is either $0$ or $1$ depending on whether its accuracy for its training sample belonging to either $c_1$ or $c_2$ is at least $0.5$.
+However, it is not difficult to imagine a slightly more complex algorithm that results in a weight $w \in \left[0,1\right]$ which is directly proportional to the accuracy.
+
+Despite this simplicity, they were able to achieve a great performance.
+The FDR obtained was above 98\% while the FDR was kept under 0.1\% for multiple scenarios.
+
+What allowed them to get these excellent outcomes, besides of course the algorithm, was their dataset that contained more than 2 million samples of SMART attribute snapshots.
+
+\section{Backpropagation Neural Network}\label{sec:BackpropagationNeuralNetwork}
