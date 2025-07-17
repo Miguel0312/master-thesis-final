@@ -1,7 +1,0 @@
-PWD /home/miguel/Downloads/thesis_template-data-science/thesis_template
-INPUT /var/lib/texmf/web2c/luahbtex/lualatex.fmt
-INPUT ./appendix.tex
-OUTPUT appendix.log
-INPUT /usr/share/texlive/texmf-dist/tex/latex/latexconfig/lualatexquotejobname.lua
-INPUT /usr/share/texlive/texmf-dist/tex/latex/base/ltluatex.lua
-INPUT /usr/share/texlive/texmf-dist/tex/latex/l3kernel/expl3.lua

@@ -255,3 +255,122 @@ The FDR obtained was above 98\% while the FDR was kept under 0.1\% for multiple 
 What allowed them to get these excellent outcomes, besides of course the algorithm, was their dataset that contained more than 2 million samples of SMART attribute snapshots.
 
 \section{Backpropagation Neural Network}\label{sec:BackpropagationNeuralNetwork}
+
+A Neural Network (NN) is a Machine Learning model that can be used to perform both classification and regression tasks.
+Its name comes from the fact that its development was inspired by how a brain work: with neurons that can be interpreted as nodes and synapses that connect them.
+The first implementation of this approach is credited to Rosenblatt with his Perceptron architecture \cite{rosenblatt1957perceptron}.
+
+In general, this architecture can be represented as a sequence of layer of nodes (the neurons) and a set of directed edges from every node in layer $l$ to every node in layer $l+1$.
+Moreover, each node has an output value $o_j$ and each edge $(u, v)$ has a weight $w_{uv}$.
+
+The first and last layers are special.
+The output values of the nodes of the first one correspond to the input values to the network.
+The values in these nodes represent the sample being evaluated.
+The last layer, in contrast, represents the output values of the network.
+
+From the values on the input layer we can compute the output values of every node in the network.
+In order to do that, we need to introduce the concept of activation function $\varphi$.
+
+The activation function is a non-linear function that will map the input given to a node to its output.
+The input to a node $v$ is the sum of the ouput values of $u$ such that $(u, v)$ is in the network times the weight of the edge $(u,v)$.
+Formally:
+
+$$
+o_v = \varphi\left(\sum_{u=1}^{n} w_{uv} o_u\right)
+$$
+
+Where $w_{uv}$ is taken to be 0 when the edge $(u, v)$ does not belong to the graph.
+
+Therefore, from an input to the first layer, we can compute the values of the outputs of the second layer.
+This process can be repeated until the output value for the last layer is calculated.
+
+The fact that the activation function takes as input a linear combination of the ouputs of the nodes of the previous layer explains why it shouldn't be linear.
+If $\varphi$ were linear, then the ouput of each neuron would be a linear with respect to the ones of the last layer.
+So, the output of the last layer would be a linear function of the inputs.
+
+Having a non-linear activation function is desired, therefore, not because otherwise the math would not work.
+Instead it is due to the fact that there are other, simpler methods to learn linear patterns such as SVM or simply the minimum squares method.
+The power of a neural network is exactly that it is able to recognize non-linear patterns, which can only be done when using non-linear activation functions.
+
+Here we note that the activation function does not need to be the same on every layer, but it does not change the analysis we are performing here.
+Some of the most commonly used activation functions are the ReLU $ReLU(x) = \max(0, x)$ and the logistic function $\phi(x) = \dfrac{1}{1+e^{-z}}$.
+
+A classic problem that can illustrate how useful a non-linear function can be is the binary classification of samples in two classes 0 and 1.
+Suppose that on the last layer a function that maps $(-\infty, \infty)$ to $[0,1]$, such as the logistic function, is used.
+Then, the output of the network will be a real number between 0 and 1.
+
+A classic interpretation of this value is the probability $p$ of the sample belonging to class 1.
+Trivially, the probability of the sample belonging to class 0 is $1-p$.
+So, the model is able to not only classify the sample, but also to indicate how confident it is that this is the correct result.
+
+The output value of every neuron, including the output ones, can be computed from the input values and the weights.
+So, in order to fully describe a network, the only attributes that we need are the weights.
+The challenge is, therefore, how to determine the weights that are appropriate for the problem at hand.
+
+The method used by the Backpropagation Neural Networks to compute the weights of the network is called backpropagation.
+It is inspired by the Gradient Descent approach first developed by Cauchy \cite{lemarechal2012cauchy} long before the advent of computers.
+
+The intuition behind the approach proposed by Cauchy is as follows: imagine there is a person on a region that is full of hills.
+When the person is at point $(x, y)$, the height relative to the sea level is $h(x, y)$.
+Now suppose that the person is trying to find the lowest point in the plane.
+
+This can be easily mapped to the problem of trying to minimize a function.
+Moreover, even though our discussion uses as example a function with two independent variables, it can be extended for functions with more variables without loss of generality.
+
+The gradient descent technique uses the fact that the gradient of a function $\nabla h(x, y)$ always points in the direction in which the incline is non-negative and the steepest at $(x, y)$.
+Therefore, $-\nabla h(x,y)$ is the direction in which the value of $h$ decreases as fast as possible at $(x, y)$.
+So, the idea is to take a small step in that direction since the change of height when traveling in that direction in the neighborhood of $(x, y)$ is non-negative.
+
+From the above description it is possible to see that this method tends to arrive at a local minimum.
+The most notable exception is when the function has some discontinuities or some points in which its values decreases very rapidly.
+In this case, if the "length" of the step (called learning rate) is too big, it may happen that we jump over the region that would yield a smaller value.
+
+The solution can be to decrease the learning rate, but this causes the algorithm to take longer to converge.
+So, there is a tradeoff between the time required to train the model and its capacity to find the best values.
+
+In the context of neural networks, the function that the model tries to minimize is the loss function over the training samples and its parameters are the weights of the connections of the network.
+
+It can be proven \cite{amari1993backpropagation} that at each step, each weight of the network should be update by:
+
+% TODO: update the notation for this section 
+
+$$
+\Delta w_{ij}^{l} = -\eta e_i^{(l)} o_{j}^{(l-1)}
+$$
+
+Where $\eta$ is the learning rate $e_i^{(l)}$ is called the error signal of the $i^{th}$ node at layer $l$.
+The error signal can be computed recursively as follows:
+
+$$
+\begin{cases}
+    e_i^{(k)} &= \varphi '(u_i^{(k)}) \\
+    e_i^{(l)} &= \varphi '(u_i^{(l)}) \sum_j w_{ij}^{(l)}e_j^{(l+1)}, l \in \{1,\dots,k-1\}
+\end{cases}
+$$
+
+One notable aspect of this formula is that the error signal of neurons on layer $l$ depend only on the error signals on layer $l+1$.
+So, the errors for each node of a given layer can be computed in parallel.
+
+This property is so important that the capacity of computing such values in parallel made it possible to introduce neural network training in GPUs \cite{steinkraus2005using} which was one of the main causes of the AI spring that has been happening on the last 20 years.
+
+Zhu et al. applied the backpropagation neural network approach presented above to the problem of hard drive failure detection.
+The lowest FAR they obtained was 0.48\% while keeping an FDR of 94.6\%.
+They were even able to obtain a model that had and FDR of 100\% on their test set, but with a relatively higher FAR of 2.26\%.
+
+However, their work has some limitations.
+Specially due to the fact that they only varied one parameter.
+The only variable they changed on their experiment was the number of samples per failing hard drive to be used in the training and test processes.
+So, if the time window was 12 hours, for example, only the samples taken at most 12 hours before a hard drive failed were included in the \textbf{bad} class.
+
+No results were presented about what happens with a bigger or smaller network or with more or less input parameters, for instance.
+
+This highlights the importance of the current work that intends to test how different parameters influence the results for a variety of models.
+Moreover, the objective of creating a piece of software that can be easily configured to train a model with different parameters will allow the study of the impact of different parameters easier, even when the results are not readily available. 
+
+% TODO: perhaps mention that further parallelism is possible through batch training
+
+% TODO: mention the adaptative learning rates and simmulated annealing that we implemented \citep{ranganath2013adaptive}.
+
+
+
+%TODO: Check what happens when instead of 0 and 1 we use 0.1 and 0.9 for the binary models
