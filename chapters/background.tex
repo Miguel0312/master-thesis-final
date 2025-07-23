@@ -353,7 +353,7 @@ So, the errors for each node of a given layer can be computed in parallel.
 
 This property is so important that the capacity of computing such values in parallel made it possible to introduce neural network training in GPUs \cite{steinkraus2005using} which was one of the main causes of the AI spring that has been happening on the last 20 years.
 
-Zhu et al. applied the backpropagation neural network approach presented above to the problem of hard drive failure detection.
+Zhu et al. \cite{Zhu13} applied the backpropagation neural network approach presented above to the problem of hard drive failure detection.
 The lowest FAR they obtained was 0.48\% while keeping an FDR of 94.6\%.
 They were even able to obtain a model that had and FDR of 100\% on their test set, but with a relatively higher FAR of 2.26\%.
 
@@ -371,6 +371,144 @@ Moreover, the objective of creating a piece of software that can be easily confi
 
 % TODO: mention the adaptative learning rates and simmulated annealing that we implemented \citep{ranganath2013adaptive}.
 
+\section{Recurrent Neural Network}\label{sec:RecurrentNeuralNetwork}
 
+A Backpropagation neural network is a relatively simple yet powerful model capable of solving multiple regressions and classification problems.
+However, due to its simplicity it can have some limitations.
 
-%TODO: Check what happens when instead of 0 and 1 we use 0.1 and 0.9 for the binary models
+One of the most notable ones is how it evaluates one sample at a time.
+It does not care about previous samples and doesn't have any type of memory.
+
+However, in many problems the concept of time or, more generally, of sequences is present.
+Due to how they work, backpropagation neural networks are not capable of efficiently working with sequences.
+
+This limitation was found early on and there are works from the 1980s already trying to figure out how a neural network could store a state depending on what the previous samples were \cite{jordan1986serial}.
+
+However, long before computer science tried to tackle the problem of modeling sequences, neuroscience had already tried to find a method that allowed the brain to do so.
+The question that they were trying to answer was how does memory in the human brain.
+More specifically, how does neurons and synapses allow the brain to react to stimuli it received in the past.
+
+The first clues to an explanation were found at the end of the $19^{\text{th}}$ century, when researchers were suggesting that the brain had "recurrent semicircles" \cite{espinosa2025importance} implying that the signal of a neuron at a certain time $t$ could influence its value at a time $t' > t$.
+
+As a consequence, later on, one of the first mathematical models of a neuron that was developed to try and explain brain activity was the MCP \cite{mcculloch1943logical}, which allowed loops between neurons in the network.
+In their paper presenting the MCP, McCulloch and Pitts were able to show that their architecture allowed the activity of the network to be influenced by activity indefinitely far in the past \cite{mcculloch1943logical}.
+
+And, as was common at the advent of the development of neural networks, researchers used the model of the brain as an inspiration.
+This culminated on the work of Jordan \cite{jordan1986serial} and Elman \cite{elman1990finding}.
+They proposed a model that is nowadays labeled as Simple Recurrent Neural Networks (SRNN).
+
+In an SRNN, the first layer of the network doesn't have only input nodes, it also has state nodes.
+These state nodes are connected to the output of the network.
+Figure \ref{fig:RNNIllustration} shows a schema of how such a netwrok is connected.
+
+\begin{figure}
+    \begin{center}
+        \includegraphics[width=.5\linewidth]{RNNIllustration.png}
+        \caption[Schema of a Jordan Network]{Schema of a Jordan Network - \cite{elman1990finding}}
+        \label{fig:RNNIllustration}
+    \end{center}
+\end{figure}
+
+So, when evaluating a sample, the input layer receives not exclusively the values of the independent variables of the sample, but also some values that depend on its state at previous times.
+
+The ability to modify the output depending on the previous sample evaluated is what allows the to have some type of memory.
+Models that are able to take don't evaluate each sample independently but are instead able to take into account a context, are useful for applications such as Natural Language Processing (NLP).
+
+This is due to the fact that when trying to predict the next word in a sentence for example, it is important to take into account evey previous word \cite{tarwani2017survey}.
+A backpropagation neural network, due to its nature, would only be able to take into account a fixed number of words.
+
+Nowadays, other methods beyond SRNNs are used to do this task.
+Most notably, in the last few years, Transformers\cite{vaswani2017attention} became very popular.
+Nevertheless, models that are able to take into account a sequence of samples are still very much needed.
+
+In the context of hard drive failure prediction, our samples are not words, but they do consist on a time series and thus form a well defined sequence.
+This indicates that SRNNs may be a good model to tackle the problem.
+
+Indeed, Xu et al \cite{Xu16} made use of Recurrent Neural Networks to the problem at hand.
+Their setup for the neural network is quite standard, up until the point in which they introduce the concept of health status.
+
+So, differently from every other approach in the litterature they do not divide the samples on good or failing.
+They actually use a more general method in which samples are divided in $N$ classes.
+
+The ones from hard drives that do not fail during the observation period are given the label $N$.
+The samples from failing disks are divided in the other $N-1$ classes, labeled from $1$ to $N-1$.
+The algorithm they use to assign the failing samples divides them depending on how close they are to the failure by using fixed-length intervals.
+
+We can formally define the approach that they explained in natural language in their paper as follows:
+suppose that the last $n$ samples from each failing disk are kept and need to be divided in $N-1$ bins numbered from 1 to $N-1$.
+Let the last sample from a specific hard drive before it fails be taken at time $T_i$.
+Then, supposing that a sample is taken every 1 unit of time (usually once per hour) the class $c_i(t)$ of the sample of the disk $i$ at time $t$ is given by:
+
+\begin{equation}\label{eq:linear_discrete_health_status}
+c_i(t) = \biggl\lfloor\dfrac{(N-1)(T_i-t)}{n}\biggr\rfloor + 1, 0 \leq T_i - t < n
+\end{equation}
+
+Here, $\lfloor x \rfloor$ is the floor of $x$, meaning the largest integer smaller than or equal to $x$.
+For example, $\lfloor 1.8 \rfloor = 1$, $\lfloor 3 \rfloor = 3$.
+
+By analizing this formula, we see that the $\dfrac{n}{N}$ samples closest to the moment of failure are assigned to class 1, the next $\dfrac{n}{N}$ are assigned to class 2 and so on.
+
+We can also prove that the formula indeed does what is desired, that is, it assigns a number from 1 to $N-1$ to each sample.
+In order to do so, we notice that since we have $n$ samples taken every 1 unit of time, and the last one is taken at time $T_i$, the first one is taken at $T_i - n + 1$.
+
+We can compute $c_i(T_i) = 1$ and $c_i(T_i - n + 1) = \biggl\lfloor(N-1)\left(1-\dfrac{1}{n}\right)\biggr\rfloor + 1$.
+Since $\left(1-\dfrac{1}{n}\right) < 1$, $\biggl\lfloor(N-1)\left(1-\dfrac{1}{n}\right)\biggr\rfloor < N - 1$.
+Moreover, $c_i(t)$ is clearly monotonic, since it is a composition of the floor function and elementary mathematical operations.
+
+So, we can guarantee that the formula given above for $c_i(t)$ correctly assigns each sample to a class from $1$ to $N-1$ in which the closer the sample is to the moment the drive fails, the smaller is the value of its class label.
+
+Here it is important to stress that the implementation of health status on the study by Xu et al \cite{Xu16} is different from the one by Li et al. that used this concept to train their decision trees.
+The main distinction is that the later used continuous values in order to train a regression tree.
+The former, on the other hand, divides the samples in discrete classes.
+
+So, when training the recurrent neural network model, the $N$ classes are completely independent.
+Concretely, it does not use the fact that when the correct output for a certain sample is 1, it is better to classify it as belonging to class 2 than to class $N$.
+
+Even though the health status is a useful abstraction, in the end there is a need to output a prediction of whether the sample belongs to the \textbf{good} or \textbf{bad} hard drive.
+In other words, the model needs to state if the hard drive is going to fail soon or not which is the actual problem we are trying to solve.
+
+In order to do that, when they want to predict the status of a certain drive, they take its last $N$ samples.
+Then, in order from the oldest to the most recent they put each sample as input to the network.
+The order in which they are evaluated is important, since the model being used is an RNN and therefore has memory.
+
+For each sample, they classify it as belonging to the class whose associated output neuron value is maximum.
+By doing this, it is obtained a sequence of integers $c = (c_1, \dots, c_n), 1 \leq c_i \leq N$.
+
+For each $j \in \{1,\dots,N\}$, let $C_j$ be the cardinality of $j$ in $c$.
+It is clear that $\sum_{j=1}^N C_i = n$.
+Then, they define two algorithms, the Voting Algorithm which Tends to Health (VAT2H) and the Voting Algorithm which Tends to Failure (VAT2F):
+
+% TODO: explain how this differs from the algorithm we used  (sum of probabilities instead of sum of classes)
+
+\begin{equation}\label{eq:vat2h}
+    \text{VAT2H}(C) = 
+    \begin{cases}
+        \text{Healthy, if } & \sum_{j=1}^{N-2}C_j \geq C_N \\
+        \text{Failure, if } & \sum_{j=1}^{N-2}C_j < C_N
+    \end{cases}
+\end{equation}
+
+\begin{equation}\label{eq:vat2f}
+    \text{VAT2F}(C) = 
+    \begin{cases}
+        \text{Healthy, if } & \sum_{j=1}^{N-2}C_j > C_N \\
+        \text{Failure, if } & \sum_{j=1}^{N-2}C_j \leq C_N
+    \end{cases}
+\end{equation}
+
+Notice that the contribution of the class $N-1$ is ignored in both algorithms.
+This implies that these algorithms only work for when $N \geq 3$.
+
+So, in order to tackle the problem they start by expanding the number of classes from 2 to $N$ using equation \ref{eq:linear_discrete_health_status}.
+Then, after the network classifies a sequence of samples of the same disk in the classes from 1 to $N$ they use equation \ref{eq:vat2h} or \ref{eq:vat2f} to obtain the final binary classification output.
+
+They perform their tests on three different datasets corresponding to different models of hard drives.
+% TODO: add a source for these claims
+The neural network for each model is trained independently since, as discussed, not only the behavior of hard drives of different models can be different, but also, for different vendors, the values of the SMART attributes are not guaranteed to be compatible.
+
+They obtained promising results of their approach.
+The FDR of their models was around 97\% while the FAR was almost always kept below 0.1\%.
+As was expected, the VAT2H algorithm resulted in a lower FDR and a lower FAR than the VAT2F algorithm.
+
+Nevertheless, their study admitted to having some limitation such as not studying the impact of other health status algorithms different from the one in equation \ref{eq:linear_discrete_health_status}.
+Moreover, they used a fixed amount of classes with $N=6$ all over their research as well as a constant number of nodes in the hidden layer of their network.
