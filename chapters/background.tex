@@ -341,14 +341,14 @@ $$
 Where $\eta$ is the learning rate $e_i^{(l)}$ is called the error signal of the $i^{th}$ node at layer $l$.
 The error signal can be computed recursively as follows:
 
-$$
+\begin{equation}\label{eq:error_signal}
 \begin{cases}
     e_i^{(k)} &= \varphi '(u_i^{(k)}) \\
     e_i^{(l)} &= \varphi '(u_i^{(l)}) \sum_j w_{ij}^{(l)}e_j^{(l+1)}, l \in \{1,\dots,k-1\}
 \end{cases}
-$$
+\end{equation}
 
-One notable aspect of this formula is that the error signal of neurons on layer $l$ depend only on the error signals on layer $l+1$.
+One notable aspect of Equation \ref{eq:error_signal} is that the error signal of neurons on layer $l$ depend only on the error signals on layer $l+1$.
 So, the errors for each node of a given layer can be computed in parallel.
 
 This property is so important that the capacity of computing such values in parallel made it possible to introduce neural network training in GPUs \cite{steinkraus2005using} which was one of the main causes of the AI spring that has been happening on the last 20 years.
@@ -512,3 +512,230 @@ As was expected, the VAT2H algorithm resulted in a lower FDR and a lower FAR tha
 
 Nevertheless, their study admitted to having some limitation such as not studying the impact of other health status algorithms different from the one in equation \ref{eq:linear_discrete_health_status}.
 Moreover, they used a fixed amount of classes with $N=6$ all over their research as well as a constant number of nodes in the hidden layer of their network.
+
+\section{Long Short-Term Memory Network}\label{sec:lstm}
+
+Time has proved that RNNs are an effective method to tackle multiple sequence-based problems such as NLP \cite{tarwani2017survey} and video processing \cite{yadav2022survey}.
+
+However, RNNs suffer from a limtation called the vanishing gradient problem.
+This limits their efficiency when they need to learn long term dependencies.
+
+This has been proven theoretically by Hochreiter \cite{hochreiter1998vanishing} as well as by Bengio using different approaches \cite{bengio1993problem}.
+The intuition behind this result can be explained using the concept error signal defined in Equation \ref{eq:error_signal}.
+
+If we expand the bottom expression to explicitly write $e_i^{(l)}$ in terms of the error signals of layer $l+2$ instead of $l+1$, we obtain:
+
+$$
+    e_i^{(l)} = \varphi '(u_i^{(l)}) \sum_j w_{ij}^{(l)} \varphi '(u_j^{l+1}) \sum_k w_{jk}^{(l+1)} e_k^{l+2}
+$$
+
+From this, we can see that $\dfrac{e_i^{(l)}}{e_i^{(l+2)}} \propto \varphi '(u_i^{(l)})\varphi '(u_j^{l+1})$.
+So, it is proportional to the product of two derivatives.
+We can exend this process to show that the impact induced by layer $l + m$ on layer $l$ must be scaled by the product of $m$ derivatives.
+
+% TODO: draw a schema representing backpropagation through time (just multiple copies of the same network)
+But, if we redraw our RNN to be represented by Figure , we see that the input of sample $t$ can be interpreted as being connected to the imput of sample $t'$ by $(t'-t+1)k$ layers.
+So the impact of the sample $t$ on sample $t'$ is proportional to $\prod_{i=1}{(t'-t+1)k}\varphi'(x_i)$.
+
+But, if the values of $\varphi'(x_i)$ are all smaller than 1, not only the scaling term will approach 0, but it will do so exponentially fast with respect to the distance between the two samples.
+
+What Bengio showed on his paper \cite{bengio1993problem} is that, as a network learns, these derivatives decrease and become smaller than 1.
+From this result, he was able to prove that as the distance between two samples increase, the impact of the earlier one on the other on the RNN tends to zero, as long as the network has enough time to learn.
+
+The only assumption he made was that the model was not sensitive to noisy perturbations.
+This is equivalent to stating that if two data sets are similar, then the model is able to learn approximately the same pattern, which is coherent to the problem at hand.
+
+So, there is a theoretical demonstration that for long enough sequences, the RNN architecture will be subjected to the vanishing gradient problem.
+However, theory alone is not enough to define what is a long enough sequence.
+In order to state that the vanishing gradient problem has an impact on RNNs it is needed to observe such phenomenon in real-world scenarios. 
+
+And, indeed, experiments show that problems as diverse as sentiment analysis (\cite{raza2021cloud}) and greenhouse gas predictions (\cite{ludwig2019comparison}) can be better learned by networks that try to solve the vanishing gradient problem such as LSTMs.
+
+Other research projects show that applying techniques explicitly developed to curb the vanishing gradient problem can result in better results even without needing to change the architecture at all.
+For instance, in \cite{hu2021handling} they adapted the activation functions that increase the value of their derivatives.
+
+With this evidence, both theoretical and experimental, it is clear the need to develop networks that are able to better handle or completely avoid the vanishing gradient problem.
+
+So, after proving the vanishing grdient problem in RNNs, Hochreiter developed a network that was not subjected to the same problem.
+His solution was the Long Short-Term Memory architecture (LSTM).
+A schematic view of such network is presented on Figure \ref{fig:LSTMSchema}.
+
+\begin{figure}
+    \begin{center}
+        \includegraphics[width=.6\linewidth]{LSTM-Schema.png}
+        \caption[Schema of an LSTM]{Schema of an LSTM - \cite{rahman2019nonintrusive}}
+        \label{fig:LSTMSchema}
+    \end{center}
+\end{figure}
+
+Simillarly to the RNN architecture, we combine the output of the previous sample (represented by $h^{(n)}$ on the image) with the input data for the current sample ($\chi^{(n+1)}$).
+However, the main innovation is the presence of the cell state, the channel represented by the horizontal lane in the bottom half of the image and dented by $c^{(n)}$.
+
+It is not updated using the same logic of the neurons used by BPNNs and RNNs so it is not subject to the vanishing gradient problem.
+The operations performed by an LSTM can be explained in three steps, each one called a gate.
+
+The first one is called the forget gate and is represented in the image by the leftmost $\zeta$ node.
+It takes the input of the current sample ($\chi^{(n+1)}$) and the last output ($h^{(n)}$) of the network and generates a forget factor vector $P^{(n+1)}$ which is then multiplied component by component with the current value of the state $c^{(n)}$.
+
+The name from this gate comes from the fact that it controls how much the network remembers from the past samples.
+In the limit case in which $P^{(n+1)} = \mathbf{0}$, the value of $c$ is reset and no information is kept from previous interations.
+
+The next step is the input gate, which in the image corresponds to the central $\zeta$ and $\tanh$ nodes.
+If the forget gate decides how much from previous iterations should be kept in the cell state, the input gate controls which data from the current one should be added to the cell state.
+
+The input gate is divided in two steps: the first is to generate the candidate values $\xi$ and the second is to compute the weights $I^{(n+1)}$.
+Then each component of the candidate values vector is multiplied by its corresponding weight and added to the cell state.
+
+Finally, there is the output gate that will actually compute the predicted ouput value for the sample.
+In the image it is represented by the rightmost $\zeta$ and $\tanh$ gates.
+
+This is the step that uses the cell state as input.
+It combines the cell state value as well as the sample input $x^{(n+1)}$ and the previous sample output $h^{(n)}$ to compute a prediction $h^{(n+1)}$ for the current sample. 
+
+In the previous paragraphs, we used generic terms such as compute and generate.
+However, for an LSTM, the equations to calculate each term presented above is well defined and are given by:
+
+\begin{equation}\label{eq:lstm_calculations}
+    \begin{cases}
+        P^{(n+1)} &= \zeta(W_f\cdot[h^{(n)}, x^{(n+1)}] + b_f) \\
+        I^{(n+1)} &= \zeta(W_i\cdot[h^{(n)}, x^{(n+1)}] + b_i) \\
+        \xi &= \tanh(W_\xi\cdot[h^{(n)}, x^{(n+1)}] + b_\xi) \\
+        C^{(n+1)} &= P^{(n+1)} \odot C^{(n)} + \xi \odot I^{(n+1)} \\
+        O^{(n+1)} &= \zeta(W_o\cdot[h^{(n)}, x^{(n+1)}] + b_o) \\
+        h^{(n+1)} &= O^{(n+1)} \odot \tanh(C^{n+1})
+    \end{cases}
+\end{equation}
+
+In the equation above, $[x, y]$ is the concatenation of vectors $x$ and $y$ and $x \odot y$ is the Hadamard or element-wise product.
+Also, $W_x$ and $b_x$ represent, respectively, the weights and bias of the network when computing variable $x$.
+These are the values that need to be learned during the training process.
+
+When it comes to applying this architecture to solving the problem of prediciting hard drive failure in data centers, there are not many research projects that focused in this problem that have been published.
+Nevertheless, there are some related works.
+
+The first of them was done by Zhang et al. (\cite{zhang2017deep}).
+The main objective of their work was to develop a symbolization-based feature extraction algorithm to improve event detection in LSTMs.
+
+To show the impact of their approach they did perform an experiment on hardware failure detection.
+However, they were presenting a more general method.
+Consequently, they used different metrics such as balanced accuracy instead of FAR and FDR that would allow us to directly compare with other methods.
+
+Despite us not having access do the desired metrics we can deduce some aspects of their results that allow us to compare to other works.
+In order to do that, let positive be the event of the hard drive failing and negative the event of it not failing.
+
+Then the true positives $TP$ are the hard drives whose failure was correctly predicted.
+The true negative $TN$ are the hard drives that did not fail and that were not flagged as going to fail.
+The false negatives $FN$ are the hard drives that failed but were not flagged as so.
+And, the false positives $FP$ are the hard drives that did not fail but that were predicted as going to fail.
+
+This allows us to rewrite the FDR and the FAR as follows:
+
+\begin{equation}
+    \begin{cases}
+        \begin{aligned}
+            FDR &= \dfrac{TP}{TP + FN} \\
+            FAR &= \dfrac{FP}{FP + TN}
+        \end{aligned}
+    \end{cases}
+\end{equation}
+
+We then introduce the definition of Balanced Accuracy(BA), which was the metric used in \cite{zhang2017deep}:
+
+\begin{equation}\label{eq:ba_def}
+    BA \equiv \dfrac{1}{2}\left(\dfrac{TP}{TP + FN} + \dfrac{TN}{TN + FP}\right)
+\end{equation}
+
+But by manipulating \ref{eq:ba_def}, it is possible to rewrite it in terms of the FDR and the FAR:
+
+\begin{equation}
+    BA = \dfrac{FDR + (1-FAR)}{2}
+\end{equation}
+
+So, even though it is not possible to retrieve the FDR and the FAR by themselves, it is possible to find a range of possible values for them from the balanced accuracy value.
+
+In \cite{zhang2017deep}, the best BA they achieved over all the experiments with the LSTMs, with or without their feature extraction algorithm, was $85.2\%$.
+But, since BA is the average of FDR and $(1-FAR)$, it implies that one of these values is at most $85.2\%$, else their average would be bigger.
+
+So, either the FDR they achieved is under $85.2\%$ or their FAR is above $14.8\%$ which is much worse than the one achieved with any other methods we have discussed.
+
+This indicates that their research cannot be used as a reference for the hard disk failure detection problem.
+
+There is an additional paper by Das et al. (\cite{das2018desh}) that also applies LSTM to hardware failure detection.
+However, it is not for hard drives in data centers, but rather to nodes in a supercomputer which leads to a profile much different than the papers discussed so far.
+
+The first main difference is that the time scales in which it operates is much smaller.
+The TIA they achieve is of the order of 100 seconds, which indicates a very different behavior than the one found in data centers in which it is possible to predict a failure more than 100 hours in advance (\cite{Li14}, \cite{Zhu13}).
+
+But the most important difference is that in \cite{das2018desh} they try to predict failures that happen in components other than the hard drive.
+So, they do not make use of SMART attributes, they instead analyze system logs.
+
+Therefore, their motivation to use LSTMs is to detect patterns in text rather than to study time-series.
+
+The FDR they achieve with their LSTM-based approach is between $85.1\%$ and $87.5\%$.
+However it is not possible to compare it to the other results presented above since their problem is quite different from the detection of hard drive failures in data centers.
+
+\section{Other Techniques}
+
+There are two additional methods that have been used to tackle the hard drive failure prediction problem and that are worth mentioning.
+Since these approaches will not be implemented by our current work, we will limit ourselves to a briefer explanation of the theory behind them.
+
+\subsection{Support-Vector Machine}
+
+A Support-Vector Machine (SVM) is a non-probabilistic classifier \cite{cortes1995support}.
+The idea behind it is to plot the samples in an n-dimensional space, in which $n$ corresponds to the number of features in the vector.
+
+Then, the algorithm finds the hyperplane that minimizes its loss function.
+The points on one side of the hyperplane correspond to the positive class and the other to the negative class.
+
+The main drawback of SVMs is that drawing a hyperplane means that it can only detect linear dependencies.
+So, if there are points in a 2D-plane and the boundaries between the good and bad class is the circumference centered at the origin with radius 1, there is no way that a line can be drawn to correctly divide both regions.
+
+The solution to this is to use the kernel-method, in which dimensions of the original vector are combined using non-linear function and the output of the function is assigned to a new component of the sample vector.
+This allows the SVM to correctly learn non-linear dependencies between the variables.
+
+In the example above, we can transform the vector $v = (x, y)$ into $v' = (x, y, x^2 + y^2)$ and then and apply the SVM to the set of $v'$.
+Then the SVM can correctly generate the plane $x_3 = 1$ and thus solve the classification problem without needing to learn explicitly non-linear dependencies.
+
+When it comes to applying SVMs to predicting hard drive failure, the best results were achieved in \cite{Zhu13}.
+They used hyperparameters on their model in order to prioritize either a small FAR or a big FDR.
+
+When optimizing for the smallest FAR possible, Zhu et al. obtained a FAR of $0.03\%$ and an FDR of $68.5\%$.
+When priority was giving to increasing the FDR, they obtained a FAR of $0.3\%$ but the FDR was increased to $80.0\%$.
+
+Support-Vector Machines, when compared to other approaches, present, therefore, a method that is able to achieve a smaller FAR.
+However, in contrast, it is not able to attain FDRs as good as other methods while keeping an acceptable FAR.
+
+In the research by Zhu et al. they kept results that had an FAR smaller than $5\%$, so it implies that improving the FDR above $80\%$ requires increasing the FAR to unacceptable levels.
+
+\subsection{Convolutional Neural Networks}
+
+A Convolutional Neural Network (CNN) is a deep learning machine learning model.
+It is usually applied to computer vision tasks.
+Just like BPNNs discussed in Section \ref{sec:BackpropagationNeuralNetwork}, it is not recurrent meaning that the output for a certain sample is not propagated to following ones.
+
+The main aspect that differs a CNN from a BPNN is the presence of convolutional layers \cite{o2015introduction}.
+In a convolutional layer, a neuron in layer $l$ is not connected to every neuron in layer $l-1$.
+Instead, it is connected to a few consecutive nodes of layer $l-1$.
+
+This is useful for handling data with many input parameters, such as images, in which each pixel corresponds to an input.
+For a 100x100 image, fully connecting two layers would require 10,000 weights.
+By using a 5x5 convolution window with shared weights, it is possible to reduce this value to only 25 weights, or 400 times less.
+This allows the network to be much deeper.
+ 
+A relevant attribute of a CNN is its translation invariance \cite{kayhan2020translation}.
+The use of shared weights implies that shifting some values by a certain constant value does not hinder the network's ability to recognize a certain pattern.
+This is because the convolutions will be performed with the same weights no matter in which part of the image a certain sequence of values is.
+
+It was exactly this aspect of the CNN that motivated Sun et al. (\cite{sun2019system}) to adapt CNNs to handle time series in order to tackle the hard drive failure prediction problem.
+For a time-series, translation invariance implies that a pattern due to a sequence of values or events can be detected indepndently of where in the sequence it occurs.
+
+In order to obtain, they also had to adapt the loss function to handle the imbalanced dataset that contained many more good samples than failing ones, which is an intrisic aspect of the problem at hand.
+
+So, they gave a bigger weight to failing samples that were misclassified, else the model would be prone to classify almost every disk as a good one.
+This is due to the fact that, with a classic loss function, even if the model misclassified every failing disk, its total loss would be much smaller than if it misclassified even a small percentage of the good disks.
+
+In their results, the metric they presented that we can use to compare with other methods was the precision, which corresponds to the FDR.
+They achieved a FDR of $75\%$ which is considerably smaller than the one attained by other models.
+
+But this is mainly due to the fact that they used an heterogeneous dataset, meaning that they did not train different networks for different hard drive models.
+So, it is difficult to compare this results with the ones presented so far.
