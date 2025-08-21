@@ -193,67 +193,6 @@ They obtained FARs below 0.5\% while keeping the FDR around 95\% for the Classif
 The Regression Tree model used a continuous value between $-1$ and $0$ as the health status value, linearly dependent on how much time before the breakdown of the drive is.
 This approach was able to increase the FDR by 1\% while also decreasing de FAR by around 0.2\% when compared to the Classification Tree implemented by them.
 
-\section{Random Forest}\label{sec:randomforest}
-
-One of the problems faced by Decision Trees, specially when they become large is overfitting \cite{ying2019overview}.
-This is due to the fact that the split values for each attribute used by the tree are directy taken from the values on the training set.
-So, when the tree is deep and there are only a few training samples in a node, the splitting values will sharply follow the ones in the training set.
-
-Another way to explain this is that since a Decision Tree can closely follow the patterns observed in the training set because it can choose the splitting threshold independently of the ancestor nodes in the tree, it presents a small bias.
-But in Machine Learning there is a principle known as the Bias-Variance tradeoff that states that a model with low bias will present a high variance and vice-versa \cite{briscoe2011conceptual}.
-
-More concretely, for our problem at hand, suppose that there are only a few samples in the training set with a certain cause of failure.
-During training, if they are in a node $\mathbf{N}$ and are mixed with other samples, we may be able to correctly put them in a leaf that is a child of $\mathbf{N}$.
-
-So, the model will have a good performance on the training set which corresponds to a small bias, since the expected and predicted value will be the same.
-However, imagine that when evaluating an unseen sample there is an attribute, that is not important, to identify this cause of failure, is slightly different from the values observed in the training set.
-
-Then, the path taken will not go through $\mathbf{N}$ and thus it won't go through the same evaluation process as samples that are simillar.
-As a result, a small change in a random attribute can cause a huge differnce on the path traversed and thus on the result.
-Having an algorithm that can behave very differently for slightly different inputs corresponds to a model that has a high variance.
-
-In order to tackle this, the concept of Random Forests has been introduced \cite{ho1995random}.
-The idea is to train multiple, independent Decision Trees at once, each one trained with a different subset of the training data.
-Notice that these subsets do not have to be disjoint, specially when the train set is relatively small.
-
-Random Forests have performed well for a variety of tasks, ranging from image recognition to Alzheimer's disease detection and prediction \cite{shaik2019brief}.
-
-The set of trees has, therefore, a smaller bias when compared to the one trained using all the data at once.
-This is due to the fact that we can reduce the probability of overfitting, since there will have a larger varierty of decision nodes.
-
-If we return to the example of a specific cause of failure, the training samples corresponding to it will not even necessarily be on the same tree anymore.
-So, there is a larger set of nodes that have been trained with samples corresponding to this failure.
-Therefore, the probability of going through one of them when traversing the tree is higher even if the unseen sample does not correspond perfectly.
-
-The drawback is that since the training samples with the same failure cause will be spread, the probability of having a node that had multiple ones when training is smaller, which can increase the error on the training set and on samples very simillar to the ones in the training set.
-
-Once the set of trees is created and trained, it remains to decide how to regroup all of them.
-
-The most common approach when asking for the model to predict the result for a sample is to take the value predicted by each tree and then combine them.
-For a classification problem, it can be returning the most common predicted class, while for a regression problem it can be done by taking the average of the outputs of the trees.
-
-This can be done quite efficiently, since, at each node, it suffices to compare the value of a specific attribute with a threshold and go to the corresponding child.
-Moreover, since the traversal processes are independent, they can even be done in parallel.
-
-A research by Shen et al. \cite{Shen18} used Random Forests for hard drive failure prediction.
-One of the most interesting aspects of their research is how they combined the results of the different tree of the forests.
-
-Instead of simply checking whether most trees had an output of \textbf{good} or \textbf{bad} for a specific sample, they giving different trees different weights based on a clustering algorithm.
-
-More specifically, they performed the clustering process for the good and bad samples independently.
-Then, when predicting the outcome for an unseen sample, the clusters $c_1$ and $c_2$ to which it would belong if it were a good or bad one are computed.
-
-Since it is known which samples of the training set were used to train each tree, it is possible to evaluate the accuracy of each tree for the training samples in $c_1$ and in $c_2$.
-Based on these accuracies, it is possible to give a bigger weight to trees that better learned the samples of the clusters to which the sample being evaluate belongs.
-
-They used a simple algorithm in which the weight of a tree is either $0$ or $1$ depending on whether its accuracy for its training sample belonging to either $c_1$ or $c_2$ is at least $0.5$.
-However, it is not difficult to imagine a slightly more complex algorithm that results in a weight $w \in \left[0,1\right]$ which is directly proportional to the accuracy.
-
-Despite this simplicity, they were able to achieve a great performance.
-The FDR obtained was above 98\% while the FDR was kept under 0.1\% for multiple scenarios.
-
-What allowed them to get these excellent outcomes, besides of course the algorithm, was their dataset that contained more than 2 million samples of SMART attribute snapshots.
-
 \section{Backpropagation Neural Network}\label{sec:BackpropagationNeuralNetwork}
 
 A Neural Network (NN) is a Machine Learning model that can be used to perform both classification and regression tasks.
@@ -430,8 +369,8 @@ Their setup for the neural network is quite standard, up until the point in whic
 So, differently from every other approach in the litterature they do not divide the samples on good or failing.
 They actually use a more general method in which samples are divided in $N$ classes.
 
-The ones from hard drives that do not fail during the observation period are given the label $N$.
-The samples from failing disks are divided in the other $N-1$ classes, labeled from $1$ to $N-1$.
+The ones from hard drives that do not fail during the observation period are given the label $N-1$.
+The samples from failing disks are divided in the other $N-1$ classes, labeled from $0$ to $N-2$.
 The algorithm they use to assign the failing samples divides them depending on how close they are to the failure by using fixed-length intervals.
 
 We can formally define the approach that they explained in natural language in their paper as follows:
@@ -440,7 +379,11 @@ Let the last sample from a specific hard drive before it fails be taken at time 
 Then, supposing that a sample is taken every 1 unit of time (usually once per hour) the class $c_i(t)$ of the sample of the disk $i$ at time $t$ is given by:
 
 \begin{equation}\label{eq:linear_discrete_health_status}
-c_i(t) = \biggl\lfloor\dfrac{(N-1)(T_i-t)}{n}\biggr\rfloor + 1, 0 \leq T_i - t < n
+  c_i(t) = 
+  \begin{cases}
+    & N-1 \text{, if } i \in \mathbf{good} \\
+    & \biggl\lfloor(T_i-t)\dfrac{(N-1)}{n}\biggr\rfloor, 0 \leq T_i - t < n \text{, if } i \in \mathbf{bad}
+  \end{cases}
 \end{equation}
 
 Here, $\lfloor x \rfloor$ is the floor of $x$, meaning the largest integer smaller than or equal to $x$.
@@ -448,16 +391,16 @@ For example, $\lfloor 1.8 \rfloor = 1$, $\lfloor 3 \rfloor = 3$.
 
 By analizing this formula, we see that the $\dfrac{n}{N}$ samples closest to the moment of failure are assigned to class 1, the next $\dfrac{n}{N}$ are assigned to class 2 and so on.
 
-We can also prove that the formula indeed does what is desired, that is, it assigns a number from 1 to $N-1$ to each sample.
+We can also prove that the formula indeed does what is desired, that is, it assigns a number from 0 to $N-2$ to each sample.
 In order to do so, we notice that since we have $n$ samples taken every 1 unit of time, and the last one is taken at time $T_i$, the first one is taken at $T_i - n + 1$.
 
-We can compute $c_i(T_i) = 1$ and $c_i(T_i - n + 1) = \biggl\lfloor(N-1)\left(1-\dfrac{1}{n}\right)\biggr\rfloor + 1$.
-Since $\left(1-\dfrac{1}{n}\right) < 1$, $\biggl\lfloor(N-1)\left(1-\dfrac{1}{n}\right)\biggr\rfloor < N - 1$.
+We can compute $c_i(T_i) = 0$ and $c_i(T_i - n + 1) = \biggl\lfloor(N-1)\left(1-\dfrac{1}{n}\right)\biggr\rfloor + 1$.
+Since $\left(1-\dfrac{1}{n}\right) < 1$, $\biggl\lfloor(N-1)\left(1-\dfrac{1}{n}\right)\biggr\rfloor < N - 2$.
 Moreover, $c_i(t)$ is clearly monotonic, since it is a composition of the floor function and elementary mathematical operations.
 
-So, we can guarantee that the formula given above for $c_i(t)$ correctly assigns each sample to a class from $1$ to $N-1$ in which the closer the sample is to the moment the drive fails, the smaller is the value of its class label.
+So, we can guarantee that the formula given above for $c_i(t)$ correctly assigns each sample to a class from $0$ to $N-2$ in which the closer the sample is to the moment the drive fails, the smaller is the value of its class label.
 
-Here it is important to stress that the implementation of health status on the study by Xu et al \cite{Xu16} is different from the one by Li et al. that used this concept to train their decision trees.
+Here it is important to stress that the implementation of health status on the study by Xu et al \cite{Xu16} is different from the one by Li et al. \cite{Li14} that used this concept to train their decision trees.
 The main distinction is that the later used continuous values in order to train a regression tree.
 The former, on the other hand, divides the samples in discrete classes.
 
@@ -483,16 +426,16 @@ Then, they define two algorithms, the Voting Algorithm which Tends to Health (VA
 \begin{equation}\label{eq:vat2h}
     \text{VAT2H}(C) = 
     \begin{cases}
-        \text{Healthy, if } & \sum_{j=1}^{N-2}C_j \geq C_N \\
-        \text{Failure, if } & \sum_{j=1}^{N-2}C_j < C_N
+        & \text{Healthy, if } \sum_{j=1}^{N-2}C_j \leq C_N \\
+        & \text{Failure, otherwise}
     \end{cases}
 \end{equation}
 
 \begin{equation}\label{eq:vat2f}
     \text{VAT2F}(C) = 
     \begin{cases}
-        \text{Healthy, if } & \sum_{j=1}^{N-2}C_j > C_N \\
-        \text{Failure, if } & \sum_{j=1}^{N-2}C_j \leq C_N
+        & \text{Healthy, if } \sum_{j=1}^{N-2}C_j < C_N \\
+        & \text{Failure, otherwise}
     \end{cases}
 \end{equation}
 
@@ -676,8 +619,69 @@ However it is not possible to compare it to the other results presented above si
 
 \section{Other Techniques}
 
-There are two additional methods that have been used to tackle the hard drive failure prediction problem and that are worth mentioning.
+There are three additional methods that have been used to tackle the hard drive failure prediction problem and that are worth mentioning.
 Since these approaches will not be implemented by our current work, we will limit ourselves to a briefer explanation of the theory behind them.
+
+\section{Random Forest}\label{sec:randomforest}
+
+One of the problems faced by Decision Trees, specially when they become large is overfitting \cite{ying2019overview}.
+This is due to the fact that the split values for each attribute used by the tree are directy taken from the values on the training set.
+So, when the tree is deep and there are only a few training samples in a node, the splitting values will sharply follow the ones in the training set.
+
+Another way to explain this is that since a Decision Tree can closely follow the patterns observed in the training set because it can choose the splitting threshold independently of the ancestor nodes in the tree, it presents a small bias.
+But in Machine Learning there is a principle known as the Bias-Variance tradeoff that states that a model with low bias will present a high variance and vice-versa \cite{briscoe2011conceptual}.
+
+More concretely, for our problem at hand, suppose that there are only a few samples in the training set with a certain cause of failure.
+During training, if they are in a node $\mathbf{N}$ and are mixed with other samples, we may be able to correctly put them in a leaf that is a child of $\mathbf{N}$.
+
+So, the model will have a good performance on the training set which corresponds to a small bias, since the expected and predicted value will be the same.
+However, imagine that when evaluating an unseen sample there is an attribute, that is not important, to identify this cause of failure, is slightly different from the values observed in the training set.
+
+Then, the path taken will not go through $\mathbf{N}$ and thus it won't go through the same evaluation process as samples that are simillar.
+As a result, a small change in a random attribute can cause a huge differnce on the path traversed and thus on the result.
+Having an algorithm that can behave very differently for slightly different inputs corresponds to a model that has a high variance.
+
+In order to tackle this, the concept of Random Forests has been introduced \cite{ho1995random}.
+The idea is to train multiple, independent Decision Trees at once, each one trained with a different subset of the training data.
+Notice that these subsets do not have to be disjoint, specially when the train set is relatively small.
+
+Random Forests have performed well for a variety of tasks, ranging from image recognition to Alzheimer's disease detection and prediction \cite{shaik2019brief}.
+
+The set of trees has, therefore, a smaller bias when compared to the one trained using all the data at once.
+This is due to the fact that we can reduce the probability of overfitting, since there will have a larger varierty of decision nodes.
+
+If we return to the example of a specific cause of failure, the training samples corresponding to it will not even necessarily be on the same tree anymore.
+So, there is a larger set of nodes that have been trained with samples corresponding to this failure.
+Therefore, the probability of going through one of them when traversing the tree is higher even if the unseen sample does not correspond perfectly.
+
+The drawback is that since the training samples with the same failure cause will be spread, the probability of having a node that had multiple ones when training is smaller, which can increase the error on the training set and on samples very simillar to the ones in the training set.
+
+Once the set of trees is created and trained, it remains to decide how to regroup all of them.
+
+The most common approach when asking for the model to predict the result for a sample is to take the value predicted by each tree and then combine them.
+For a classification problem, it can be returning the most common predicted class, while for a regression problem it can be done by taking the average of the outputs of the trees.
+
+This can be done quite efficiently, since, at each node, it suffices to compare the value of a specific attribute with a threshold and go to the corresponding child.
+Moreover, since the traversal processes are independent, they can even be done in parallel.
+
+A research by Shen et al. \cite{Shen18} used Random Forests for hard drive failure prediction.
+One of the most interesting aspects of their research is how they combined the results of the different tree of the forests.
+
+Instead of simply checking whether most trees had an output of \textbf{good} or \textbf{bad} for a specific sample, they giving different trees different weights based on a clustering algorithm.
+
+More specifically, they performed the clustering process for the good and bad samples independently.
+Then, when predicting the outcome for an unseen sample, the clusters $c_1$ and $c_2$ to which it would belong if it were a good or bad one are computed.
+
+Since it is known which samples of the training set were used to train each tree, it is possible to evaluate the accuracy of each tree for the training samples in $c_1$ and in $c_2$.
+Based on these accuracies, it is possible to give a bigger weight to trees that better learned the samples of the clusters to which the sample being evaluate belongs.
+
+They used a simple algorithm in which the weight of a tree is either $0$ or $1$ depending on whether its accuracy for its training sample belonging to either $c_1$ or $c_2$ is at least $0.5$.
+However, it is not difficult to imagine a slightly more complex algorithm that results in a weight $w \in \left[0,1\right]$ which is directly proportional to the accuracy.
+
+Despite this simplicity, they were able to achieve a great performance.
+The FDR obtained was above 98\% while the FDR was kept under 0.1\% for multiple scenarios.
+
+What allowed them to get these excellent outcomes, besides of course the algorithm, was their dataset that contained more than 2 million samples of SMART attribute snapshots.
 
 \subsection{Support-Vector Machine}
 
