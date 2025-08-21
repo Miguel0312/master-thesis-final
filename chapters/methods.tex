@@ -1,4 +1,552 @@
 \chapter{Methods}\label{chap:methods}
 
+The objective of this thesis is to compare different approaches to tackle the hard drive failure prediction formally introduced in Section \ref{sec:problem} problem using SMART attributes.
+However, we do not limit ourselves to already published results and we implement a software capable of executing the training and evaluation processes for different models.
 
-Describe the method/software/tool/algorithm you have developed here
+This allows us to not only to more objectively compare the different methods by running them on the same dataset, but also to more deeply explore the influence of the hyperparameters on the performance of the models.
+For instance, current work on neural networks, such as \cite{Zhu13} and \cite{Xu16}, for this problem do not explore the impacts of the number of nodes in the hidden layer on their performance metrics.
+
+Finally, the current work aims to more thoroughly test the impact of the Health Status approach proposed in \cite{Xu16}.
+This will be done by firstly implementing it for neural networks other than the RNN one used in the original work.
+
+Secondly, we will change the total number of distinct health status and observe how the performance of the models evolve.
+More precisely, we will change the value of $N$ in equation \ref{eq:linear_discrete_health_status} since the original research in \cite{Xu16} uses a constant value of $N = 6$.
+
+\section{Health Status}\label{sec:health_status}
+
+The current work aims to apply the concept of Health Status introduced in \cite{Xu16} and \cite{Li14}.
+We intend to find how powerful this concept can be to improve the performance of different types of models.
+
+The ideas is to, instead of mapping all good samples to a class labeled 1 and all bad samples to a class labeled 0.
+Instead, we can extend the range of different labels beyond these two values.
+
+The rationale behind it is that samples of a failing disk that were taken closer to the moment of failure probably better describe a failing disk than the ones from the same disk that were taken much before the critical moment.
+
+Now, the challenge is to determine how to map different samples of the same disk to distinct values.
+Let $n$ be the number of samples from a bad disk that we consider as belonging to the critical window.
+
+The first health status algorithm we have is the one we will call the Discrete Health Status Algorithm.
+It is the one used by Xu et al. \cite{Xu16} and is described by Equation \ref{eq:linear_discrete_health_status}.
+
+One of the main advantages of using it is that if we set $N = 2$ in Equation \ref{eq:linear_discrete_health_status}, we will get label $0$ for the bad disks and $1$ for the good disks.
+So, we can consider this method a generalization of the ad-hoc labeling that is used in most binary classification problems.
+
+The second approach we can use for an algorithm that computes the health status of a certain sample is to drop the constraint that it must be an integer, while still keeping it linear and mapping every value to the interval $[0,N-1]$.
+
+So, we propose the following algorithm that we will refer as the Continuous Health Status Algorithm:
+
+\begin{equation}\label{eq:continuous_health_status}
+  c_i(t) = 
+  \begin{cases}
+    & N - 1 \text{, if } i \in \mathbf{good} \\
+    & (T_i-t)\dfrac{(N-1)}{n}, 0 \leq T_i - t < n, \text{, if } i \in \mathbf{bad}
+  \end{cases}
+\end{equation}
+
+The Continuous Health Status Algorithm completely abandons the concept of classes and instead uses a score system.
+
+\section{Models}\label{sec:models}
+
+In total, we have implemented five distinct models to tackle the hard drive failure prediction problem.
+Namely, they are Classification Trees, Regression Trees, Backpropagation Neural Networks (BPNN), Recurrent Neural Networks (RNN) and Long Short-Term Memory Networks (LSTM).
+
+The theory behind the models we implemented was explained in Chapter \ref{chap:background}. 
+So, in the following section, we present the motivation behind each model as well as the input expected and the ouput provided by each of them.
+
+\subsection{Decision Tree}\label{subsec:decision_tree}
+
+Classification and Regression Trees can be grouped under the umbrella term Decision Tree.
+Despite this, their application to the problem at hand is not done the same way.
+
+Classification Tree is a model designed to tackle classification problems as its name suggests.
+Therefore, once we are trying to determine if a hard drive is going to fail soon or not and we have a set of SMART attributes, the idea to try this model follows trivially
+
+However, the main drawback of a Classification Tree is that it cannot easily assign a degree of confidence to its result, since it is limited to outputting an integer corresponding to a class.
+
+The Regression Tree allows us to tackle this limitation by not looking at the problem from a classification point of view.
+Instead, it aims to assign a score to each sample, which can be a real number.
+
+For the Regression Tree, the concept of classes does not even exist.
+It is up to us to map the classes to scores that are fed to the model and then interpret its output to map it to a class of our problem.
+
+So, it can be an extremely powerful tool as long as we can assign scores instead of labels to our samples.
+Therefore, the approach of using Health Status matches perfectly with this use case.
+
+In order to train a Classification Tree and a Regression Tree, the training set is formatted the same way: a set of samples of SMART attribute values labeled with their corresponding Health Status.
+The only limitation is that the Classification Tree is limited to integer values of Health Status.
+
+On the other hand, the output produced by both models is quite different.
+When an unseen sample is given to the Classification Tree, it will simply output an integer value between $0$ and $N-1$.
+
+In contrast, the Regression Tree can produce a real score and can even take values that were not present in the training set.
+This values can be bigger than $N-1$ or even smaller than $0$.
+
+\subsection{Neural Networks}\label{subsec:nn}
+
+We use three different neural network architectures: BPNN, RNN and LSTM.
+
+The idea behind using a BPNN is similar to the one to use Decision Trees: it can work well for problems in which we have to classify samples based on real valued feature vectors.
+
+On the other hand, RNNs and LSTMs work quite differently.
+As discussed in sections \ref{sec:RecurrentNeuralNetwork} and \ref{sec:lstm}, these networks are adapted to handle sequences of values instead of processing different samples independently.
+This lends itself perfectly to our use case in which we have in our dataset different time series, which is a type of sequence. 
+
+This difference allows us to divide our models into two different groups.
+We will call one the time insensitive class and the other the time sensitive class. 
+
+Time insensitive models are the ones that treats each sample independently even though some come from the same hard drive.
+So, these are the ones that do not have a direct way to model time dependencies.
+In our experiments, these are Decision Tree and BPNN.
+
+In contrast, time sensitive models expect to receive a sequence of samples of the same hard drive in chronological order, since they are able to model how the values of a sample at a previous time impact the current one.
+In our experiments, these are RNN and LSTM.
+
+The input data expected by the BPNN is therefore similar to the one for Decision Trees discussed in Subsection \ref{subsec:decision_tree}: a set of samples and health status values that are independent.
+This is the case for both the training and testing processes.
+
+The time sensitive models, however, add some additional constraints to the input data.
+The samples from the same disk must be fed in chronological order in order for them to be able to perform their time propagation operations correctly.
+Moreover, the networks need to be know where the data from a hard disk ends and data from a new one begins so it can erase its memory.
+
+Even though all data from a disk is fed sequentially, it is important to notice that the time sensitive models will also generate a different output for each sample instead of classifying the entire sequence at once.
+
+When it comes to the ouput, we can adapt any of the three neural network architectures we have to behave in two ways.
+The first is the classic approach to a binary classification problem in which there is a single output neuron.
+
+As a consequence of its architecture, can only handle cases in which $N = 2$, so we call them Binary Neural Network models.
+
+The output value then is constrained to the interval of $[0,1]$.
+In practice, this is done by using a sigmoid as the activation function of the last neuron, since it maps values in $]-\infty,\infty[$ to $]0,1[$
+
+The advantage of this approach is that it provides an easy way to interpret its output: the value of the output node can be seen as the degree of confidence that the model has that the given sample belong to the class labeled as 1 (in our case this corresponds to a good disk).
+
+The second way to organize the ouput of the neural network is to use a different output node for each of the $N$ classes being predicted.
+This time, the constraint of $N=2$ can be dropped.
+Because of this, we call the models following this architecture as Multi-Level Neural Networks.
+
+Each of the $N$ output nodes produces a value that is interpreted as a score assigned to each class.
+The bigger the value of the $i^{th}$ output node, the higher the confidence of the model that the sample belongs to the class $i$.
+
+Moreover, when training such a model, there is the need to translate the Health Status value, which will be an integer number, into an $N$-dimensional vector since this is the format expected by the model.
+
+We use the one-hot encoding method, in which the vector corresponding to a sample whose Health Status is $h$ has all its components equal to 0 except for the $h^{th}$ one, assuming 0-based indexing.
+So, if $N = 4$ and $h = 1$, the corresponding vector is $(0,1,0,0)$.
+
+The output provided by each model that we have explained in this section refers to how it handles a single sample.
+However, the problem we are trying to solve is to classify a disk as about to fail instead and not a single sample.
+
+As a result, the output of the models are not enough to detect failing drives.
+Some additional steps are needed to allow us to make predictions about a disk.
+The operations we perform to take the results for samples of a disk into a prediction about its state are detailed in Subsection \ref{subsec:voting}.
+
+\section{Setup}\label{sec:setup}
+
+In this section we describe the components of the experiment beside the model such as the feature selection and the voting algorithm.
+These are steps that are common to all models and therefore allow us to more objectively compare the different methods than by comparing previous work since the preprocessing steps can be made exactly the same and the models can be trained and evaluated on the same dataset.
+
+\subsection{Change Rate}
+
+The first step is to compute the change rate of the attributes for each sample.
+This is done due to the fact that we are using models as Decision Trees and BPNNs presented in sections \ref{sec:decisiontree} and \ref{sec:BackpropagationNeuralNetwork}.
+These models evaluate each sample independently and therefore cannot make use of the fact that we are working with a time series unless we explicitly add new features to each sample.
+
+More formally, we choose a positive integer $\Delta t$ that is the same for every sample.
+Then for the hard drive $i$ we will have a sequence $(x_{i,t}), t \in \{1,\dots,T\}$ where $x_{i,t}$ is a vector with the SMART values for the disk at time $t$.
+We then compute the sequence:
+
+\begin{equation}\label{eq:change_rate}
+(x'_{i,t}), t > \Delta t, \text{with } x'_{i,t} = x_{i,t} \oplus (x_{i,t} - x_{i,t-\Delta t})
+\end{equation}
+
+Here $\oplus$ denote vector concatenation meaning that we insert additional components to the vector.
+It is this sequence $(x'_{i,t})$ that is then passed to the next steps of the experiment.
+
+Notice that the first $\Delta t$ samples need to be discarded, since the change rate is not well defined for them.
+This fact, as well as the observation that two samples too far apart should not be as strongly correlated than two closer ones suggest that the value of $\Delta t$ in practice should be kept small.
+As a result, for most experiments, we keep $\Delta t$ equal to 1.
+
+This step is completely optional and the next steps continue behaving correctly if the change rates are not inserted, they just works with smaller vectors.
+This allows us to do experiments without the change rate computation to observe its impact on the performance of the models.
+
+\subsection{Feature Selection}\label{subsec:feature_selection}
+
+The next stage of the preprocessing procedure is to perform the feature selection.
+Once we have multiple sequences of vectors with or without change rates, we need to decide which features are actually going to be fed to the model.
+
+The feature selection process has become a key step in real-world scenarios in order to remove irrelevant features and reduce the dimensionality of the data.
+Models working with more relevant features can more easily learn the problem at hand since a smaller number of relationships between the different parameters need to be found \cite{kumar2014feature}.
+
+For the failure prediction problem we have, the challenge is to remove the features that behave similarly in the good and bad disks.
+In order to do that we compare 3 different methods: z-score, reverse arrangement and rank-sum.
+
+The three of them compare the distribution of the same feature on the good and bad disks.
+A feature can be either a SMART attribute or the change rate of a SMART attribute computed in the previous step, but all features are evaluated independently and in the same manner.
+If these distributions are very different, the score assigned to the feature is higher than if the distributions are more similar.
+
+The approach used in our experiments is to decide a number $F$ of features to keep.
+Then, the $F$ features with the highest score are kept and the others are discarded.
+
+This is a less biased approach than using a threshold value for the score of a feature in order for it to be kept.
+This is due to the fact that these thresholds would be need to be different for each function used since the score distribution depends on the function.
+Moreover, this allows for the approach to be more easily generalized for different datasets that can present different behaviors.
+
+The main drawback of this approach is that multiple experiments need to be performed in order to find the value of $F$ taht maximizes the performance.
+Nevertheless, the advantages easily outweight this limitation.
+
+The z-score compares the difference of the means of an attribute over the two classes \cite{Murray2005}.
+It is defined as follows:
+
+\begin{equation}
+  z \equiv \dfrac{m_f - m_g}{\sqrt{\dfrac{\sigma_f^2}{n_f} + \dfrac{\sigma_g^2}{n_g}}}
+\end{equation}
+
+Where $m_f$, $\sigma_f$ and $n_f$ are, respectively, the average of the feature over the failed samples, its standard deviation and the number of failed samples respectively. 
+The values $m_g$, $\sigma_g$ and $n_g$ represent the same quantities but for the good samples.
+
+If the average of the feature in both classes are relatively small when compared to their variances, then the probability that they come from the same distribution is bigger and the value of $z$ will be closer to 0.
+
+Since for the feature selection step we are interested only on whether they are similar or not and not which the distribution is bigger, we use $|z|$ as the score that the feature selection algorithm actually outputs.
+
+The reverse arrangement test indicates whether a given sequence has a tendency to increase or decrease or not \cite{Murray2005}.
+Let $(f_{i,t}), t \in \{1,\dots,T\}$ be the sequence representing the values of a certain feature for disk $i$.
+Then, we define the test statistic $A$ as:
+
+\begin{equation}\label{eq:reverse_arrangement}
+  A \equiv \sum A_t, \text{with } A_t \equiv \sum_{j=t+1}^{T} I(f_{i, t} > f_{i, j})
+\end{equation}
+
+Here, $I$ is the identity function and is equal to 1 if the condition passed as argument is verified and 0 otherwise.
+
+If the values of $f_{i,t}$ come from the same distribution, then there is no temporal tendency and the expected value of $A$ can be computed as well as its standard deviation.
+
+By analyzing the above formula we notice that if $f_{i,t}$ tends to decrease as times passes, the value of $A$ will be large.
+On the other hand, if its tendency is to increase, then $A$ will be large.
+
+So, if the value of $A$ is too far away from the expected average when compared to the expected standard deviation of a non-time dependent distribution, it allows us to affirm, up to some degree of confidence, that there actually is a time-dependency of $f_{i,t}$.
+
+For a given value of $T$ and a certain degree of confidence, the lower and upper bounds of $A$ for a time-independent distribution can be computed.
+These values are available in tables such as Appendix A.6 of \cite{bendat2011random}.
+
+In our experiment, for each disk we keep its 100 last samples (the ones that fail earlier are discarded).
+Then we compute the value of $A$ for each disk.
+We then count the number of good and bad disks in which a time-dependency can be observed with a high degree of confidence.
+
+In order to do this we take into account the upper and lower bounds of \cite{bendat2011random} with $\alpha = 2\%$ meaning that in order for a feature of a disk to be flagged as time dependent there is a probability 98\% that a time-independent distribution would not yield a value of $A$ so far from the expected value.
+
+Finally, the score assigned to a feature is the absolute value of the difference between the number of bad and good samples that were flagged as time dependent.
+In mathematical notation, for a given feature $f$:
+
+\begin{equation}
+  ra(f) \equiv \left| \sum_{d \in \mathbf{good}} I(A(d, f) > U \lor A(d, f) < L) - \sum_{d \in \mathbf{bad}} I(A(d, f) > U \lor A(d, f) < L) \right|
+\end{equation}
+
+Where $A(d, f)$ denotes the test static defined in Equation \ref{eq:reverse_arrangement} for disk $d$ and feature $f$.
+$U$ and $L$ are, respectively, the upper bound and the lower bound of the test statistic for the confidence value we are using.
+
+Taking the difference between the two classes allows to handle features that are trivially always increasing or decreasing on both sets.
+For example, if we only computed $A$ for the bad samples, some features such as the number of hours the disk is in power on state would always have a high score since it is monotonically increasing for every sample.
+
+The third feature selection algorithm we have used is the rank-sum test, also known as the Mann-Whitney U test.
+It works in a similar way as the other methods by trying to gauge the probability that two sequences of values come from the same distribution.
+
+In order to explain the idea behind this method we take a generic example in which we have two sequences $X = (x_1,\dots,x_n)$ and $Y = (y_1,\dots,y_m)$.
+The challenge is to determine with which degree of confidence we can affirm that $X$ and $Y$ were obtained by sampling the same distribution.
+
+The rank-sum test achieves this by first merging the two sequences into a new sequence $Z$ and sorting it.
+It uses the fact that if $X$ and $Y$ come from the same distribution, then the values of $X$ will probably be well distributed on the sorted sequence $Z$ instead of being concentrated at the beginning or at the end.
+
+So, let the elements of $X$ be at positions $(p_1, \dots, p_n)$ in $Z$ and the ones of $Y$ be at positions $(q_1, \dots, p_m)$.
+We notice that $(p_1, \dots, p_n) \oplus (q_1, \dots, q_m)$ is a permutation of $(1,\dots,n+m)$.
+Then, the test statistic $U$ is given by \cite{macfarland2016mann}:
+
+\begin{equation}
+  U = \min\left(nm + \dfrac{n(n+1)}{2} - R_1, nm + \dfrac{m(m+1)}{2} - R_2\right)
+\end{equation}
+
+With:
+
+\begin{equation}
+  \begin{cases}
+    R_1 &= \sum_{i=1}^{n}p_i \\
+    R_2 &= \sum_{i=1}^{m}q_i
+  \end{cases}
+\end{equation}
+
+From the values of $U, n, m$ it is possible then to calculate the p-value of the distribution.
+The p-value corresponds the degree of confidence that our hypothesis that both sequences come from the same distribution is satisfied.
+
+So, if, for a certain feature, the p-value obtained is small, we want to keep it since its value is much different on the good and bad samples.
+Therefore, the score returned by our algorithm is the opposite of the p-value.
+
+\subsection{Train-Test Split}\label{subsec:train_test_split}
+
+In order to correctly train and evaluate our models, we need to split our data into training and testing sets.
+
+This is a delicate process due to the fact that the data is not balanced, meaning that we have many more good than bad hard drives, which is a characteristic of the hard drive failure prediction problem.
+Also, we deal with distinct models that process data differently and therefore introduce the need for different operations to be performed at this step depending on the model at hand.
+
+As discussed previously, time sensitive and time insensitive models expect the training and test data to be organized differently.
+
+For the two classes of model, the first step is to choose a value $n$ of samples of the bad hard drives that we will consider as being in the critical window.
+This means that we only consider the last $n$ samples before failure as describing a failing hard drive.
+
+As we have discussed in Section \ref{sec:health_status} not all of these $n$ samples are treated equally, our experiment takes into account how close to the failure point each sample is.
+However, at this point we can already discard every sample from a bad disk that is not one of the last $n$ taken for the corresponding hard drive.
+Also, we completely discard every disk that has less $n$ samples.
+
+The next step is to do a $70/30$ split in the training and data sets respectively.
+Since we have a limited amount of bad hard drives, we want to use all of them.
+So, we assign $70\%$ of them to the training set and the other $30\%$ to the testing set.
+
+Also, we need to choose a good-bad ratio $r$, meaning that for each sample from a bad disk in the training set, we will have $r$ from good hard drives in it.
+
+For the time insensitive models, we split the good disks in training and testing sets using a $70/30$ split as well.
+Then, if the training set has $b$ bad disks, each contributing with $n$ samples, then we choose at random $b\cdot n \cdot r$ samples from the good training set to include in the final training set.
+
+The $30\%$ of the good and bad sets form our testing set.
+The split of the good disks is necessary before the sampling in order to ensure that disks in the testing set have not been seen by the model while training it.
+
+For the time sensitive models, the sampling step of the good disks to include in the training set is a little more delicate.
+This is due to the fact that we need to obtain sequences of samples to train the models, so the samples can't be sampled independently.
+
+So, we use the fact that a good disk, by definition, did not fail during the observation period.
+As a consequence, the same number $m$ of samples have been measured for each of them.
+
+Therefore, to form the training set, we choose $\dfrac{b\cdot n \cdot r}{m}$ distinct hard drives and include all of their samples.
+In the end, we will have $\dfrac{b\cdot n \cdot r}{m} \cdot m = b\cdot n \cdot r$ samples from good disks.
+This is the same number that we have for the time insensitive models, just organized in a different way.
+
+This allows us to directly compare the results for different values of $n$ and $r$ without depending on other characteristics of the dataset.
+
+\subsection{Health Status}\label{subsec:health_status}
+
+Before training our models, we need to perform a last preprocessing step that corresponds to computing the Health Status value corresponding to each hard drive sample.
+
+We then can use either the Continuous or Discrete Health Status Algorithms described in Section \ref{sec:health_status}.
+
+The Multi-Level Neural Networks and the Classification Tree models only support the Discrete version of the algorithm.
+This is due to the fact that they work directly with the idea of classes.
+
+The Binary Neural Network models also have been designed to handle the discrete health status algorithm.
+However, they have the additional constraint of $N = 2$.
+
+The Regression Tree can make use of both algorithms, even though it is more adapted to the continuous version, since the models mentioned in the previous paragraph are specialized to handle a small set of discrete output values.
+
+\subsection{Training}
+
+After performing the train-test split and computing the Health Status for the training samples, we can feed the training set to our models in order to train them.
+The specifics of how it works for each model will be discussed in more details in Section \ref{sec:models}.
+
+\subsection{Voting}\label{subsec:voting}
+
+The final step is to actually apply the models to the samples on the test set.
+This allows us to evaluate if the model has learned to predict hard drives failures for samples it has not yet seem.
+
+In a real world scenario we will have, for each disk, a sequence $(x_1,\dots,x_n)$ of its SMART attribute values taken at nearly constant intervals.
+The objective is to determine if these samples allows us to say that the disk is going to fail in the near future.
+
+At this point, we assume that we have a model that is able to take a sample (or a sequence of them in the case of time sensitive models) and generate a prediction for it.
+The format of this output can be slightly different depending on the model's architecture.
+
+The ad-hoc approach is to only consider the output of the model for the sample $x_n$.
+If it corresponds to a failing sample, we flag the disk as going to fail soon.
+
+However, a more robust approach is to take into account an interval of $v$ consecutive values $(x_{n-v+1},\dots,x_n)$.
+Imagine the case in which there is a single sample representing a failing state surrounded by tens of good samples.
+Then, probably, the hard drive is still working as intended.
+
+The approach we have here reduces the FDR or at least the TIA, since a single failing sample is necessary but not sufficient to flag a disk as failing.
+However, for the same reason, we also reduce the FAR.
+As discussed previously, this is can be an interesting trade off.
+
+In order to make the final decision of whether a disk is going to fail or not, we choose two values: the number of votes $v$ and the voting threshold $\tau$, which is a number between 0 and 1.
+Then we give the samples $(x_{n-v+1},\dots,x_n)$ to our model and receive the outputs $(y_{n-v+1},\dots,y_n)$.
+
+We then propose to combine the values of the ouputs two different ways in order to obtain the final prediction of the model.
+The first we will call Class Based Voting algorithm and is inspired by \cite{Xu16}.
+
+We first convert each $y_i$ into a class $C_i$.
+This is done differently according to the model at hand.
+For a Classification Tree, it is straightforward: $C_i = y_i$, since the output is already an integer.
+
+For a Regression Tree, we do $C_i = \min(\max(0, \lfloor y_i \rceil), N-1)$.
+Where $\lfloor z \rceil$ denotes the closest integer to $z$.
+The min and max functions allows us to handle cases in which $y_i < 0$ or $y_i > N-1$.
+
+For a Binary Neural Network, we have a similar expression: $C_i = \lfloor y_i \rceil$, since $y_i$ is constrained between 0 and 1.
+
+For a Multi-Level Neural Network, we use the class with the largest score in the output vector.
+Mathematically, $C_i = \argmax_{j\in\{0,\dots,N-1\}}(y_i[j])$.
+
+Once $C_i$ is defined for each sample, we can obtain a histogram $H$ with the number of samples classified in each class.
+We can then use $H$ to determine if the disk is in a healthy or failing state as follows:
+
+\begin{equation}\label{eq:class_based_voting}
+    \text{CB}(H) = 
+    \begin{cases}
+        &\text{Healthy, if } (1-\tau)\sum_{j=0}^{\max(0,N-3)}H_j \leq \tau H_{N-1} \\
+        & \text{Failure, otherwise} 
+  \end{cases}
+\end{equation}
+
+This is similar to Equations \ref{eq:vat2h}.
+However, we adapt it to be able to handle the case of $N$ = 2.
+
+Also, we introduce a parameter $\tau$.
+This denotes that a ratio strictly bigger than $\tau$ of the samples being considered (meaning those with $C_i \neq N-2$) have to be in classes other than $N-1$.
+
+The second voting method is specific for Multi-Level Neural Networks.
+It is simillar to the Class Based Voting, but with a modified value of $C_i$.
+
+We make use of the fact that we get a vector with $N$ scores that can be interpreted as the degree of confidence of the model that the sample belongs to each of the $N$ classes.
+
+When we increase the value of $N$, the number of samples of each class from $0$ to $N-2$ seen during the training decreases, even though the sum over all of this classes remains constant.
+So, the model may be more biased towards the class $N-1$ since it has seen more samples with it.
+
+In order to reduce the impact of this bias, we propose a method that recombines the values in classes from $0$ to $N-2$.
+In this case we get:
+
+\begin{equation}\label{eq:modified_class}
+  C_i = 
+  \begin{cases}
+    & 0, \text{ if } \sum_{j=0}^{N-3} y_i[j] > y_{N-1} \\
+    & 1, \text{ otherwise}
+  \end{cases}
+\end{equation}
+
+We then make a histogram as before, but with only two components.
+Finally, we apply the following formula that we will call the Score Based Voting Algorithm:
+
+\begin{equation}\label{eq:score_based_voting}
+  \text{SB}(H) = 
+    \begin{cases}
+        & \text{Healthy, if} (1-\tau)H_0 \leq \tau H_1 \\
+        & \text{Failure, otherwise} 
+  \end{cases}
+\end{equation}
+
+\subsection{Evaluation}
+
+% TODO: use uniform terms over the thesis to describe healthy/failure, good/bad
+In order to evaluate the model, we use the test set we described in subsection \ref{subsec:train_test_split}.
+It has $m$ distinct disks with the expected classifcation result for each of them: Healthy or Failing.
+
+In order to simulate what happens in a real-world scenario, for a disk with samples $(x_1,\dots,x_n)$, for each $i \geq v$, we take a slice $(x_{i-v+1}, \dots, x_i)$ of the samples.
+We then perform the evaluation and voting processes described in subsection \ref{subsec:voting} using our previously trained model.
+
+If for a value of $i$ we get a diagnosis of a healthy disk, then we continue the process for $i+1$.
+If we get to $i > n$ then the verdict of our experiment is that the disk is healthy.
+
+If the expected diagnosis for this disk was to be healthy, then we add 1 to our count of true negatives.
+Otherwise, we add 1 to the number of false negatives.
+
+If for some value of $i$ the voting algorithm indicates that the disk is failing, then the verdict for this disk is that it is a failing one.
+
+If the expected diagnosis for this disk was to be healthy, then we add 1 to our count of false positives.
+Otherwise, we add 1 to the number of true positives and store the time in advance with which the failure was detected, that is we store the value of $n-i$.
+
+In the end, this experiments allows us to easily compute the FAR and the FDR for our testing set.
+We also compute the average time in advance as well as its standard deviation.
+
+The average TIA indicates how much time, on average, there is to back up the data on the disk and replace it after our system flags a disk as going to fail in order to prevent data loss and disruption of service. 
+
+The standard deviation of the TIA is a measure of how much its value varies from one disk to another.
+Ideally, this value should be small to indicate that almost all failures are detected with approximately the same TIA.
+
+% Present the software
+% Present the hyper parameters
+
+\section{Software}
+
+In order to perform our experiments and objectively compare the different models, we have developed a program capable of training and evaluating any of the models described above.
+In order to allow others to verify our results, we have made the code open source\footnote{Code available at \url{https://github.com/Miguel0312/health-status-experiment}.}.
+
+We already had in mind the need to test multiple methods for different steps of the experiment, from the feature selection algorithm to the models and the voting algorithm.
+So, from the start, the architecture of the program was planned so that it would be highly extensible.
+
+This should making developing new methods and testing them with our library straightforward.
+There is also the added benefit that it also allows to compare the results on the same datasets with different state of the art methods.
+
+The models we used were the implementations from PyTorch (for the neural networks) and scikit-learn (for the decision trees).
+
+We also used an approach of decoupling the declaration of a model from the methods used to train and evaluate it.
+Since our models can be split into time sensitive and time insensitive as well as binary or multi-level, for example, different models have different parts of the pipeline in common.
+
+So, a class representing a model declares its network as well as a description, which is a series of flags indicating if it is time sensitive or not, for example.
+We then use a dynamic dispatching approach in which a method will read the description of the model and then call the appropriate algorithm.
+
+This can be more concretely observed on the \verb|train_model| method of the \\ \verb|FailureDetectionNN| class.
+Instead of overriding this method for each class, it simply calls \verb|utils.trainNN| which will read the values of the description flags and call the correct method.
+
+This makes the code a lot more robust by not repeating code and making sure that a bug that is solved or a modifcation thatt is made for one model is propagated to all of them.
+
+We also made the decision of using, for example, two distinct flags \verb|BINARY| and \\ \verb|MULTILEVEL| instead of checking for the presence or not of the \verb|BINARY| flag.
+This is the allow for future models that are neither binary nor multi-level without making it necessary to modify previously existing code.
+
+Finally, one of the most important features of such kind of library is the ability to train multiple models and modify their parameters without touching the source code.
+Therefore, the configurations to the experiments of our libray is not done through code but instead through human readable text files.
+
+Our code is able to read a file and instantiate all the steps needed to train and evaluate using the given parameters.
+
+The file format we chose was TOML (Tom's Obvious Minimal Language).
+This language allows us to separate the attributes into different tables such as dataset, preprocessing, model and vote which makes it easier to read, interpret an modify.
+
+Moreover, TOML supports arrays out of the gate.
+We used that to be able to instantiate multiple experiments from a single configuration file.
+
+Suppose that a parameter is an array instead of an integer or a string.
+Then our code will extend the other parameters to also be an array.
+For those that are single values, it suffices to create a list with multiple copies of the same elements.
+
+This make it much easier to perform multiple experiments at once and, more importantly, to analyze the impact of each of the parameters on the performance of the model.
+
+Two examples of what the configuration files used in our experiments look like are available on Appendix \ref{chap:config_files}.
+
+\section{Parameters}
+
+In this section we describe the parameters that we were able to control during our experiments.
+Most of them correspond to some values that have been introduced on previous sections, but have a common vocabulary will be useful later on to discuss the results.
+
+\begin{itemize}
+  \item \textbf{Number of Failing Samples}: the number of failing samples that we consider as belonging to the critical window of a failing disk. 
+  It is the value of $n$ on Equations \ref{eq:linear_discrete_health_status} and \ref{eq:continuous_health_status}.
+
+  \item \textbf{Change Rate Interval}: the delta we use to compute the change rates.
+  It corresponds to the value of $\Delta t$ on Equation \ref{eq:change_rate}.
+
+  \item \textbf{Feature Count}: the number of features (may it be SMART values or its change rates) to be kept by the selection feature algorithm.
+  It is the value $F$ discussed in subsection \ref{subsec:feature_selection}.
+
+  \item \textbf{Feature Selection Algorithm}: the algorithm used to rank the features in order to decide which ones to keep and which to discard.
+  There are 3 of them: z-score, rank-sum and reverse arrangement.
+
+  \item \textbf{Health Status Algorithm}: how the program should compute the health status values for the training set.
+  There are two possible algorithms: discrete (corresponding to Equation \ref{eq:linear_discrete_health_status}) and continuous (described by equation \ref{eq:continuous_health_status}).
+  
+  \item \textbf{Good-Bad Ratio}: the number of good samples to be included in the training set for each bad sample.
+  The number of bad samples is constant because we have a limited amount of them and therefore we choose to use as many as possible.
+  It is the value of $r$ on Subsection \ref{subsec:train_test_split}.
+
+  \item \textbf{Health Status Count}: the number of distinct health status classes for the discrete case or the maximum value of the health status for the continuous case.
+  It corresponds to the value of $N$ on Equations \ref{eq:linear_discrete_health_status} and \ref{eq:continuous_health_status}.
+
+  \item \textbf{Hidden Nodes}: the number of nodes on the hidden layer of the neural network models.
+  We mimic what is done in every state of the art paper on the problem in which only a single hidden layer is used instead of relying on deep learning.
+
+  \item \textbf{Learning Rate Decay Interval}: indicates the interval (in number of epochs) in which the learning rate of the neural network models should be halved.
+  We perform, therefore, a simulated annealing process in which in the beginning the model can explore the search space more freely without getting stuck in local minima and then later on it can fine-tune its parameters.
+
+  \item \textbf{Lookback}: when training a time sensitive model, the samples from the good samples are kept, while the ones from the bad ones are limited by the Number of Failing Samples parameter.
+  To prevent differences in behavior due to the different time intervals, we instead divide the sequences from all samples into sequences of length $l$, where $l$ is the lookback.
+  So, a sequence of length $m$ is divided into $m-l$ sequences of length $l$, each starting at a point $i \in \{1,\dots,m-l+1\}$.
+
+  \item \textbf{Vote Count}: the number of consecutive samples of a disk that should be evaluated when deciding if it is in a soon to fail state or not.
+  It corresponds to the value $v$ in Subsection \ref{subsec:voting}.
+
+  \item \textbf{Vote Threshold}: the minimum ratio of samples in an interval that need to be classified by a model as failing before the disk is flagged as in a soon to fail state.
+  It corresponds to the value $\tau$ in Subsection \ref{subsec:voting}.
+
+  \item \textbf{Voting Algorithm}: which of the two voting algorithms to use.
+  It can be either the Class-Based Voting Algorithm or the Score-Based Voting Algorithm.
+  
+\end{itemize}
