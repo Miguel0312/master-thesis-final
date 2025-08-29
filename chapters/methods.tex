@@ -122,7 +122,7 @@ The advantage of this approach is that it provides an easy way to interpret its 
 
 The second way to organize the ouput of the neural network is to use a different output node for each of the $N$ classes being predicted.
 This time, the constraint of $N=2$ can be dropped.
-Because of this, we call the models following this architecture as Multi-Level Neural Networks.
+Because of this, we call the models following this architecture as Multiclass Neural Networks.
 
 Each of the $N$ output nodes produces a value that is interpreted as a score assigned to each class.
 The bigger the value of the $i^{th}$ output node, the higher the confidence of the model that the sample belongs to the class $i$.
@@ -324,7 +324,7 @@ Before training our models, we need to perform a last preprocessing step that co
 
 We then can use either the Continuous or Discrete Health Status Algorithms described in Section \ref{sec:health_status}.
 
-The Multi-Level Neural Networks and the Classification Tree models only support the Discrete version of the algorithm.
+The Multiclass Neural Networks and the Classification Tree models only support the Discrete version of the algorithm.
 This is due to the fact that they work directly with the idea of classes.
 
 The Binary Neural Network models also have been designed to handle the discrete health status algorithm.
@@ -335,7 +335,7 @@ The Regression Tree can make use of both algorithms, even though it is more adap
 \subsection{Training}
 
 After performing the train-test split and computing the Health Status for the training samples, we can feed the training set to our models in order to train them.
-The specifics of how it works for each model will be discussed in more details in Section \ref{sec:models}.
+The specifics of how it works for each model were discussed in detail in Section \ref{sec:models}.
 
 \subsection{Voting}\label{subsec:voting}
 
@@ -362,6 +362,9 @@ As discussed previously, this is can be an interesting trade off.
 In order to make the final decision of whether a disk is going to fail or not, we choose two values: the number of votes $v$ and the voting threshold $\tau$, which is a number between 0 and 1.
 Then we give the samples $(x_{n-v+1},\dots,x_n)$ to our model and receive the outputs $(y_{n-v+1},\dots,y_n)$.
 
+For the time sensitive models, we pass the values $(x_{n-v+1},\dots,x_n)$ as a sequence instead of evaluating them separately.
+This is the method we have devised to take advantage of their capability to process sequences that yield the best results.
+
 We then propose to combine the values of the ouputs two different ways in order to obtain the final prediction of the model.
 The first we will call Class Based Voting algorithm and is inspired by \cite{Xu16}.
 
@@ -375,7 +378,7 @@ The min and max functions allows us to handle cases in which $y_i < 0$ or $y_i >
 
 For a Binary Neural Network, we have a similar expression: $C_i = \lfloor y_i \rceil$, since $y_i$ is constrained between 0 and 1.
 
-For a Multi-Level Neural Network, we use the class with the largest score in the output vector.
+For a Multiclass Neural Network, we use the class with the largest score in the output vector.
 Mathematically, $C_i = \argmax_{j\in\{0,\dots,N-1\}}(y_i[j])$.
 
 Once $C_i$ is defined for each sample, we can obtain a histogram $H$ with the number of samples classified in each class.
@@ -395,7 +398,7 @@ However, we adapt it to be able to handle the case of $N$ = 2.
 Also, we introduce a parameter $\tau$.
 This denotes that a ratio strictly bigger than $\tau$ of the samples being considered (meaning those with $C_i \neq N-2$) have to be in classes other than $N-1$.
 
-The second voting method is specific for Multi-Level Neural Networks.
+The second voting method is specific for Multiclass Neural Networks.
 It is simillar to the Class Based Voting, but with a modified value of $C_i$.
 
 We make use of the fact that we get a vector with $N$ scores that can be interpreted as the degree of confidence of the model that the sample belongs to each of the $N$ classes.
@@ -425,9 +428,23 @@ Finally, we apply the following formula that we will call the Score Based Voting
   \end{cases}
 \end{equation}
 
+For a Regression Tree, we can still take into account the exact score instead of the class it maps to.
+However since the output is a single number instead of a vector of numbers, the formula has to be modified.
+We propose the following expresion:
+
+\begin{equation}\label{eq:score_based_voting_regression}
+  \text{SB}(y) = 
+    \begin{cases}
+        & \text{Healthy, if} \sum_{i=1}^v y_i \geq v(N-2) \\
+        & \text{Failure, otherwise} 
+  \end{cases}
+\end{equation}
+
+The values of the Regression Tree are in the interval $[0,N-1]$, with the failing samples in the training set corresponding to values in $[0,N-1]$.
+If its average is on $[N-2,N-1]$ the result of the voting algorithm is that the disk is healthy, otherwise it signals the disk as failing.
+
 \subsection{Evaluation}
 
-% TODO: use uniform terms over the thesis to describe healthy/failure, good/bad
 In order to evaluate the model, we use the test set we described in subsection \ref{subsec:train_test_split}.
 It has $m$ distinct disks with the expected classifcation result for each of them: Healthy or Failing.
 
@@ -453,9 +470,6 @@ The average TIA indicates how much time, on average, there is to back up the dat
 The standard deviation of the TIA is a measure of how much its value varies from one disk to another.
 Ideally, this value should be small to indicate that almost all failures are detected with approximately the same TIA.
 
-% Present the software
-% Present the hyper parameters
-
 \section{Software}
 
 In order to perform our experiments and objectively compare the different models, we have developed a program capable of training and evaluating any of the models described above.
@@ -470,7 +484,7 @@ There is also the added benefit that it also allows to compare the results on th
 The models we used were the implementations from PyTorch (for the neural networks) and scikit-learn (for the decision trees).
 
 We also used an approach of decoupling the declaration of a model from the methods used to train and evaluate it.
-Since our models can be split into time sensitive and time insensitive as well as binary or multi-level, for example, different models have different parts of the pipeline in common.
+Since our models can be split into time sensitive and time insensitive as well as binary or multiclass, for example, different models have different parts of the pipeline in common.
 
 So, a class representing a model declares its network as well as a description, which is a series of flags indicating if it is time sensitive or not, for example.
 We then use a dynamic dispatching approach in which a method will read the description of the model and then call the appropriate algorithm.
@@ -480,8 +494,8 @@ Instead of overriding this method for each class, it simply calls \verb|utils.tr
 
 This makes the code a lot more robust by not repeating code and making sure that a bug that is solved or a modifcation thatt is made for one model is propagated to all of them.
 
-We also made the decision of using, for example, two distinct flags \verb|BINARY| and \\ \verb|MULTILEVEL| instead of checking for the presence or not of the \verb|BINARY| flag.
-This is the allow for future models that are neither binary nor multi-level without making it necessary to modify previously existing code.
+We also made the decision of using, for example, two distinct flags \verb|BINARY| and \\ \verb|MULTICLASS| instead of checking for the presence or not of the \verb|BINARY| flag.
+This is the allow for future models that are neither binary nor multiclass without making it necessary to modify previously existing code.
 
 Finally, one of the most important features of such kind of library is the ability to train multiple models and modify their parameters without touching the source code.
 Therefore, the configurations to the experiments of our libray is not done through code but instead through human readable text files.
@@ -533,8 +547,9 @@ Most of them correspond to some values that have been introduced on previous sec
   \item \textbf{Hidden Nodes}: the number of nodes on the hidden layer of the neural network models.
   We mimic what is done in every state of the art paper on the problem in which only a single hidden layer is used instead of relying on deep learning.
 
-  \item \textbf{Learning Rate Decay Interval}: indicates the interval (in number of epochs) in which the learning rate of the neural network models should be halved.
-  We perform, therefore, a simulated annealing process in which in the beginning the model can explore the search space more freely without getting stuck in local minima and then later on it can fine-tune its parameters.
+  \item \textbf{Learning Rate Decay Interval}: indicates the interva, in number of epochs, in which the learning rate of the neural network models should be halved.
+  We perform, therefore, a simulated annealing process in which in the beginning the model can explore the search space more freely without getting stuck in local minima and then later on it can fine-tune its weights.
+  It is only taken into account for the neural networks.
 
   \item \textbf{Lookback}: when training a time sensitive model, the samples from the good samples are kept, while the ones from the bad ones are limited by the Number of Failing Samples parameter.
   To prevent differences in behavior due to the different time intervals, we instead divide the sequences from all samples into sequences of length $l$, where $l$ is the lookback.

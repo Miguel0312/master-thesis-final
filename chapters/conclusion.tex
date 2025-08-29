@@ -1,3 +1,64 @@
 \chapter{Conclusion}\label{chap:conclusion}
 
-Summarize the thesis and provide a outlook on future work.  
+In the present work, the Hard Drive Failure Prediction problem has been explored.
+More specifically we tackled the challenge to use S.M.A.R.T. attributes to make our predictions.
+
+We started discussing the main approaches possible to tackle the problem.
+In a first moment we explored the possibilities by approaching it from a binary classification point of view.
+This allows us to use different models such as Decision Trees and the naive Backpropagation Neural Network.
+
+However, by noticing that the samples available for each disk form is a time series, we were able to use some additional approaches.
+
+Firstly, we proposed the use of Recurrent and Long Short-Term Memory Networks.
+These are models that have been designed with the objective of learning sequences, including time series which is our use case.
+
+Then, we took advantage of the fact that we are using time series to make use of the concept of Health Status.
+We can notice that not every sample coming from a failing disk is made equal, we actually expect the ones closer to the point of failure to present a different profile from the ones taken long before this critical time.
+Therefore, we can divide our samples coming from failing disks in different classes.
+
+This multiclass approach allows us to extend our models.
+We created generalizations of each one of our five models to be able to tackle the multiclass version of the problem.
+
+Since, in the end, we still want to classify the disks outside of the training set in only two classes, some additional tools were needed.
+More specifically, we developed some voting algorithms to translate the results from our multiple classes into only two of them.
+
+During our experiments, we have explored the impact of different parameters on the performance of the models.
+We have shown that not only these models are able to correctly identify good and failing disks, but they are also able to alert for failures much before it actually happens.
+
+This last part is important because in a real world scenario some actions have to be taken to insure that the data saved in the disk is not lost.
+
+Moreover, we have explored not only the ideal values of the hyper parameters of the models themselves but also of the whole pipeline needed to tackle the problem such as the feature selection algorithm, the impact of including the change rates and the effect of the voting algorithms, including the one proposed by us.
+
+This was made possible thanks to the implementation of a library capable of performing all the steps from reading the dataset to evaluating the performance of all of our models.
+Our code treats each different step as an independent module and therefore the impact of the different steps and parameters could be observed separately.
+
+This report, together with our code, intends to be a reference to the Hard Drive Failure Prediction problem.
+Therefore, we compiled a set of different possible approaches and the theory behind them, we explained the steps taken to tackle the problem and we provide an implementation.
+
+The main improvement provided by our work is to try to make an unbiased evaluation of the different models, some already present in the literature and others not.
+By using the same pre and post processing steps, as well as the same dataset we remove most sources of bias.
+
+Moreover, we do not try to prove that a specific model is better.
+So, we show that most models have similar performances.
+
+In literature, we find often that the model being introduced is much better than the others. 
+However, by implementing the same models as other studies on the same dataset we have shown that this is not always the case.
+This disparity is probably caused in most cases due to spending more time fine tuning the novel model.
+
+Finally, as far as we know, ours is the first implementation of LSTMs with S.M.A.R.T. to tackle the problem at hand that can be compared to other works.
+
+This is due to the fact that the only other implementation we have found, by \cite{zhang2017deep}, was concerned with introducing an event detection approach.
+Therefore, the metrics they used were different and they were observing the impact of only their proposed method rather than exploring all the hyperparameters to obtain the best FAR and FDR possible.
+
+Future work with the problem should be concerned, firstly, with exploring the performance of the models for different datasets, since most of them are proprietary.
+We have shown that the given models are able to learn to identify the required patterns.
+
+However, since results can vary for different models of disks, we cannot know exactly how each model will perform and, specially, we cannot guarantee that the hyperparameters will be the same at all.
+
+This discrepancy that can exist for different datasets was one of the main motivations for creating the current work, which gathers different models to the problem.
+
+Another avenue to improve the understanding of the problem is to use other configurations than ours.
+This can be done by implementing other models such as Convolutional Neural Networks.
+
+Also, modifying the voting or feature selection processes can impact the results as we have shown.
+Therefore, improving them can be another path to obtain even better results.

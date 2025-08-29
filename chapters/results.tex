@@ -1,7 +1,5 @@
 \chapter{Results}\label{chap:results}
 
-% TODO: time the training of each model for comparison purposes
-
 \section{Dataset}
 
 We use a dataset from a datacenter of Baidu Inc.
@@ -34,11 +32,11 @@ The results for each model is listed on Table \ref{table:results_binary}.
       \hline
     Model & FAR(\%) & FDR(\%) & TIA(h) & TIA SD(h) \\
     \hline
-    BPNN & 1.69 & 98.46 & 368.5 & 145.8 \\
-    RNN & 1.57 & 98.46 & 356.4 & 145.8 \\
-    LSTM & 1.50 & 98.46 & 356.7 & 145.6 \\
+    BPNN & 1.82 & 98.46 & 355.8 & 146.8 \\
+    RNN & 1.63 & 99.23 & 369.3 & 137.7 \\
+    LSTM & 1.57 & 97.69 & 358.7 & 144.1 \\
     Classification Tree & 1.13 & 99.23 & 353.7 & 147.8 \\
-    Regression Tree & 0.63 & 99.23 & 348.3 & 147.3 \\
+    Regression Tree & 1.13 & 99.23 & 334.9 & 154.3 \\
     \hline
     \end{tabular}
     \caption[Results Binary Models]{Results for binary models with standard parameters}
@@ -81,6 +79,16 @@ This implies that no rushing is needed when a failure is predicted.
 The main risk lies instead on the disks that have not been detected.
 
 The capacity of such models to be highly sensitive to failing disks in order to detect problems much before they occur while keeping an FAR below 2\% proves that all of them are powerful methods to tackle the problem at hand.
+
+Concerning the time to train and test the models, we have the Classification Trees being the fastest ones to train, taking 2 minutes on average.
+The BPNN also takes a very short time, around 4 minutes.
+
+The RNN and LSTM take a little longer: on average 8 minutes.
+This is due to the fact that these are time sensitive models and therefore the samples must be evaluated in order.
+This reduces the capabilities of the model to perform tasks in parallel.
+
+All experiments have been performed on an ordinary desktop computer, with an AMD Ryzen 5 5560U CPU.
+No GPU acceleration was needed.
 
 We can compare our results to other experiments performed on the same dataset in \cite{Zhu13}.
 Our results are similar to theirs, who obtained a better FAR of 1.14\% but a slightly worse FDR of 97.69\%.
@@ -133,11 +141,11 @@ The results of this experiment are displayed on Table \ref{table:results_binary_
       \hline
     Model & FAR(\%) & FDR(\%) & TIA(h) & TIA SD(h) \\
     \hline
-    BPNN & 1.69 & 98.46 & 362.7 & 145.6 \\
-    RNN & 1.50 & 98.46 & 362.5 & 145.8 \\
-    LSTM & 1.50 & 98.46 & 361.3 & 146.2 \\
-    Classification Tree & 0.94 & 99.23 & 353.7 & 147.8 \\
-    Regression Tree & 0.63 & 98.46 & 353.3 & 148.2 \\
+    BPNN & 1.63 & 96.15 & 366.0 & 145.0 \\
+    RNN & 1.63 & 99.23 & 375.3 & 137.7 \\
+    LSTM & 1.13 & 98.46 & 362.7 & 145.6\\
+    Classification Tree & 1.13 & 99.23 & 359.8 & 147.7 \\
+    Regression Tree & 1.13 & 99.23 & 341.0 & 154.2 \\
     \hline
     \end{tabular}
     \caption[Results Binary Models with Voting]{Results for binary models with Vote Count set to 7}
@@ -158,6 +166,16 @@ Usually, a failing disk will start producing samples indicating it much before i
 Therefore, the probability that a sequence with many samples that can be predicted as failing is high.
 Thus, the decrease of the FDR is expected to be small, which is the result we obtained.
 
+For the LSTM, we obtained a result that at first seem counterintuitive.
+Even though with 7 votes more than one sample needs to be classified as bad in order to flag the disk as failing, we obtained a smaller FAR.
+In other words, the number of disks flagged as failing was strictly smaller.
+
+But this is due to the method we use to do the voting.
+Since, as explained in section \ref{subsec:voting}, with more votes a longer sequence is passed to the LSTM at once, with more than one vote, it is able to apply its ability to learn sequences.
+
+So the result we observed actually shows the main advantage of the time sensitive models: they take the context into account.
+
+
 Now, if we keep the vote count to 7 but increase the vote threshold to 0.8, we obtain the results shown on Table \ref{table:results_binary_threshold}.
 
 \begin{table}
@@ -166,14 +184,14 @@ Now, if we keep the vote count to 7 but increase the vote threshold to 0.8, we o
       \hline
     Model & FAR(\%) & FDR(\%) & TIA(h) & TIA SD(h) \\
     \hline
-    BPNN & 1.69 & 98.46 & 362.5 & 145.5 \\
-    RNN & 1.38 & 98.46 & 362.3 & 145.4 \\
-    LSTM & 0.75 & 98.46 & 362.7 & 145.6 \\
-    Classification Tree & 0.94 & 99.23 & 352.3 & 147.6 \\
-    Regression Tree & 0.56 & 97.69 & 351.1 & 147.9 \\
+    BPNN & 1.63 & 96.15 & 366.0 & 145.1 \\
+    RNN & 1.63 & 99.23 & 375.3 & 137.7 \\
+    LSTM & 0.81 & 98.46 & 362.5 & 146.0 \\
+    Classification Tree & 1.13 & 99.23 & 359.7 & 147.7 \\
+    Regression Tree & 0.69 & 98.46 & 342.8 & 152.9 \\
     \hline
     \end{tabular}
-    \caption[Results Binary Models with Voting]{Results for binary models with Vote Count set to 7}
+    \caption[Results Binary Models with Threshold]{Results for binary models with Vote Count set to 7 and Vote Threshold equal to 0.8}
     \label{table:results_binary_threshold}
   \end{center}
 \end{table}
@@ -215,3 +233,171 @@ This shows that the change rate we computed carries information than can be used
 
 Moreover, it is interesting to see that the models that had the best performance were the two Decision Tree ones with information about the change rates.
 The fact that they both Classification and Regression Trees are time insensitive implies that we can encode useful information about the problem in the form of change rates. 
+
+\section{Multiclass Models}
+
+The next step is to inverstigate the behavior of the multiclass models.
+Their hyperparameters are listed on Appendix \ref{chap:config_files}.
+Most importantly, we used as a base value a Health Status Count of 4.
+
+The results of our experiment are displayed on Tables \ref{table:results_multiclass_score_one_vote} and \ref{table:results_multiclass_class_one_vote}, presenting the performance of the models when using the Score and Class Based Voting Algorithms respectively.
+All experiments were performed with a Health Status Count of 4 and a vote count of one.
+
+Some modification on the hyperparameters were needed when compared to the binary models.
+For the Regression Tree, for instance, the maximum depth of the tree had to be increased to 15.
+
+Moreover, for the RNN and the LSTM models, the number of failing samples had to be increased to 96 to obtain a better granularity of the training samples corresponding to each class.
+This impacted the time required to train these models, but it was still around 40 minutes in an ordinary desktop computer's CPU, which is still manageable.
+
+\begin{table}
+  \begin{center}
+    \begin{tabular}{|c|c|c|c|c|}
+      \hline
+    Model & FAR(\%) & FDR(\%) & TIA(h) & TIA SD(h) \\
+    \hline
+    BPNN & 1.63 & 95.38 & 359.3 & 144.9 \\
+    RNN & 3.57 & 94.62 & 375.9 & 134.7 \\
+    LSTM & 1.94 & 97.69 & 358.4 & 142.9 \\
+    Classification Tree & 1.25 & 96.92 & 347.7 & 144.1 \\
+    Regression Tree & 0.75 & 99.23 & 353.0 & 147.8 \\
+    \hline
+    \end{tabular}
+    \caption[Results Multiclass Models, Score Voting, 1 vote]{Results for multiclass models with Score Based Voting(1 vote)}
+    \label{table:results_multiclass_score_one_vote}
+  \end{center}
+\end{table}
+
+\begin{table}
+  \begin{center}
+    \begin{tabular}{|c|c|c|c|c|}
+      \hline
+    Model & FAR(\%) & FDR(\%) & TIA(h) & TIA SD(h) \\
+    \hline
+    BPNN & 1.50 & 95.38 & 359.7 & 142.3 \\
+    RNN & 1.32 & 96.92 & 355.1 & 145.5 \\
+    LSTM & 1.88 & 97.69 & 354.2 & 146.7 \\
+    Regression Tree & 1.13 & 99.23 & 346.5 & 149.1 \\
+    \hline
+    \end{tabular}
+    \caption[Results Multiclass Models, Class Voting, 1 vote]{Results for multiclass models with Class Based Voting (1 vote)}
+    \label{table:results_multiclass_class_one_vote}
+  \end{center}
+\end{table}
+
+The results show that most multiclass models do not perform as well as their binary counterparts.
+The main exception being, of course, the Regression Tree model with Score Based Voting which is able to keep the same FDR with a smaller FAR than its binary version.
+
+If we compare the impact of the two voting algorithms, we observe that most models have a better performance using Class Based Voting for this scenario of using a Vote Count equal to 1.
+
+Our results conflict with the ones presented by \cite{Xu16} which concluded that multiclass RNNs are the most performant models.
+This can be due multiple factors.
+
+Firstly, the datasets are not the same, as we only have access to a subset of the dataset used in \cite{Zhu13}.
+Secondly, the results we obtained for the three models we implemented that they also tested are much better than the ones they found.
+These three models are the binary and multiclass BPNN as well as the Classification Tree.
+
+This fact indicates that we made a more unbiased exploration and comparison of the different models.
+These results show the importance of the current work of more impartially comparing different models instead of trying to prove that a specific one is more powerful than others.
+
+\subsection{Voting}
+
+In order to evaluate our proposed voting algorithm and compare it with the other one already present in literature, we performed the experiments now using a vote count equal to 7.
+The results obtained using the Score Based Voting Algorithm and the Class Based one are shown on Tables \ref{table:results_multiclass_score_multi_vote} and \ref{table:results_multiclass_class_multi_vote} respectively.
+
+\begin{table}
+  \begin{center}
+    \begin{tabular}{|c|c|c|c|c|}
+      \hline
+    Model & FAR(\%) & FDR(\%) & TIA(h) & TIA SD(h) \\
+    \hline
+    BPNN & 1.57 & 95.38 & 366.3 & 142.4 \\
+    RNN & 4.51 & 96.15 & 342.9 & 154.3 \\
+    LSTM & 5.33 & 99.23 & 377.1 & 135.5 \\
+    Regression Tree & 0.63 & 99.23 & 359.1 & 147.7 \\
+    \hline
+    \end{tabular}
+    \caption[Results Multiclass Models, Score Voting, 7 votes]{Results for multiclass models with Score Based Voting(7 votes)}
+    \label{table:results_multiclass_score_multi_vote}
+  \end{center}
+\end{table}
+
+\begin{table}
+  \begin{center}
+    \begin{tabular}{|c|c|c|c|c|}
+      \hline
+    Model & FAR(\%) & FDR(\%) & TIA(h) & TIA SD(h) \\
+    \hline
+    BPNN & 1.50 & 95.38 & 365.7 & 142.0 \\
+    RNN & 1.32 & 98.46 & 362.1 & 145.7 \\
+    LSTM & 4.70 & 99.23 & 377.1 & 135.5\\
+    Classification Tree & 5.33 & 99.23 & 377.1 & 135.5 \\
+    Regression Tree & 0.69 & 99.23 & 359.2 & 147.4 \\
+    \hline
+    \end{tabular}
+    \caption[Results Multiclass Models, Class Voting, 7 votes]{Results for multiclass models with Class Based Voting(7 votes)}
+    \label{table:results_multiclass_class_multi_vote}
+  \end{center}
+\end{table}
+
+For the Score Voting, we omit the results for the Classification Tree model.
+This is due to the fact that, for a Classification Tree, no score is assigned and therefore the Score Based Voting Algorithm cannot be applied.
+
+If we observe the results and compare to the results in Tables \ref{table:results_multiclass_score_one_vote} and \ref{table:results_multiclass_class_one_vote} which use a vote count equal to 1, we observe different behaviors.
+The BPNN kept the same FDR but obtained a smaller FAR.
+The FAR when using Class Based Voting was slightly smaller.
+
+For the LSTM and Classification Tree, the FDR was improved, although the FAR increased by a noticeable amount.
+
+The RNN in particular improved the most by using the Class Based Voting.
+It achieved a better FAR and FDR than either the version using one vote and the one with 7 votes and Score Based Voting.
+
+The Regression Tree model was able to keep a great FDR equivalent to the best values we have obtained over all models we have explored.
+At the same time, increasing the number of votes decreased the FAR, with our proposed Score Based Voting obtaining the smallest FAR.
+
+\subsection{Health Status Count}
+
+During our experiments, we noticed that increasing the number of different classed to 5 or 6 resulted in patterns that were more difficult for our models to learn.
+Specially for the RNN and LSTM models, the result of the experiment was highly dependent on the fine tuning of hyperparameters as well as on the seed used.
+
+This is mainly due to the fact that when increasing the Health Status Count there are two possible scenarios.
+The first is that we decrease the number of samples per class.
+The only way to mitigate this is to increase the Number of Failing Samples, which results in the training set having less relevant samples since they will be taken far away from the critical moment of failure.
+
+Either way, it may make it more difficult for our models to learn to predict failures.
+Indeed, we observe that for a Health Status Count of 3 or 4, our models are still able to perform well.
+On the other hand,  for a higher number of classes, the effects mentioned on the last paragraph override the benefits we gain by interpreting the problem from a multiclass point of view.
+
+% TODO: include the other voting algorithm
+
+On Table \ref{table:results_multiclass_three_health_status} we display the results of our experiments when Health Status Count is set to 3.
+
+\begin{table}
+  \begin{center}
+    \begin{tabular}{|c|c|c|c|c|}
+      \hline
+    Model & FAR(\%) & FDR(\%) & TIA(h) & TIA SD(h) \\
+    \hline
+    BPNN & 1.69 & 96.92 & 358.6 & 144.5 \\
+    RNN & 1.32 & 98.46 & 368.3 & 138.6 \\ 
+    LSTM & 1.82 & 98.46 & 356.1 & 142.9\\
+    Classification Tree & 1.57 & 96.92 & 352.4 & 139.3 \\
+    Regression Tree & 1.63 & 97.69 & 350.3 & 146.6 \\
+    \hline
+    \end{tabular}
+    \caption[Results Multiclass Models with Health Status Count set to 3]{Results for Multiclass Models with Health Status Count set to 3}
+    \label{table:results_multiclass_three_health_status}
+  \end{center}
+\end{table}
+
+For the network based models, reducing the Health Status Count caused an improvement when compared to the approach of using 4 Health Status as depicted on Tables \ref{table:results_multiclass_score_one_vote} and \ref{table:results_multiclass_score_multi_vote}.
+In the case of the RNN specifically, it achieved a FAR smaller than its binary counterpart, with the trade off being a slight worse FDR that is still acceptably high.
+
+This shows the power of our approach of generalizing the problem to use more than two classes.
+
+In contrast, the Decision Tree Models performed better with a Health Status Count equal to 4.
+
+For every model, the performance increases up to some value of Health Status Count and then starts decreasing.
+This value can different for each one.
+
+This implies that the models' performance are highly sensitive to the value of Health Status Count.
+However, given that the ideal value is a small integer number, it is not very difficult to explore the space of possibilities to find the best one.

@@ -200,7 +200,7 @@ Its name comes from the fact that its development was inspired by how a brain wo
 The first implementation of this approach is credited to Rosenblatt with his Perceptron architecture \cite{rosenblatt1957perceptron}.
 
 In general, this architecture can be represented as a sequence of layer of nodes (the neurons) and a set of directed edges from every node in layer $l$ to every node in layer $l+1$.
-Moreover, each node has an output value $o_j$ and each edge $(u, v)$ has a weight $w_{uv}$.
+Moreover, the $j^{th}$ node of layer $i$ emits an output value $o^{(l)}_i$ and its connection to the $j^{th}$ node of the layer $l+1$ has weight $w^{(l+1)}_{ij}$.
 
 The first and last layers are special.
 The output values of the nodes of the first one correspond to the input values to the network.
@@ -208,17 +208,19 @@ The values in these nodes represent the sample being evaluated.
 The last layer, in contrast, represents the output values of the network.
 
 From the values on the input layer we can compute the output values of every node in the network.
-In order to do that, we need to introduce the concept of activation function $\varphi$.
+In order to do that, we need to introduce the concept of activation function.
 
-The activation function is a non-linear function that will map the input given to a node to its output.
-The input to a node $v$ is the sum of the ouput values of $u$ such that $(u, v)$ is in the network times the weight of the edge $(u,v)$.
+The activation function, denoted by $\varphi$, is a non-linear function that will map the input given to a node to its output.
+For the layer $l+1$, the input $u^{l}_i$ to its $i^{th}$ node is the sum of the ouput values of layer $l$ scaled by the weights of the connexion.
+The output of a node is the value of $\varphi\left(u^{(l)}_i\right)$.
 Formally:
 
-$$
-o_v = \varphi\left(\sum_{u=1}^{n} w_{uv} o_u\right)
-$$
-
-Where $w_{uv}$ is taken to be 0 when the edge $(u, v)$ does not belong to the graph.
+\begin{equation}
+    \begin{cases}
+        u^{(l)}_i &= \sum_{j=1}^{n}o^{(l-1)}_j w^{(l)}_{ij} \\
+        o^{(l)}_i &= \varphi\left(u^{(l)}_i\right)
+    \end{cases}
+\end{equation}
 
 Therefore, from an input to the first layer, we can compute the values of the outputs of the second layer.
 This process can be repeated until the output value for the last layer is calculated.
@@ -271,10 +273,9 @@ In the context of neural networks, the function that the model tries to minimize
 
 It can be proven \cite{amari1993backpropagation} that at each step, each weight of the network should be update by:
 
-% TODO: update the notation for this section 
 
 $$
-\Delta w_{ij}^{l} = -\eta e_i^{(l)} o_{j}^{(l-1)}
+\Delta w_{ij}^{(l)} = -\eta e_i^{(l)} o_{j}^{(l-1)}
 $$
 
 Where $\eta$ is the learning rate $e_i^{(l)}$ is called the error signal of the $i^{th}$ node at layer $l$.
@@ -305,10 +306,6 @@ No results were presented about what happens with a bigger or smaller network or
 
 This highlights the importance of the current work that intends to test how different parameters influence the results for a variety of models.
 Moreover, the objective of creating a piece of software that can be easily configured to train a model with different parameters will allow the study of the impact of different parameters easier, even when the results are not readily available. 
-
-% TODO: perhaps mention that further parallelism is possible through batch training
-
-% TODO: mention the adaptative learning rates and simmulated annealing that we implemented \citep{ranganath2013adaptive}.
 
 \section{Recurrent Neural Network}\label{sec:RecurrentNeuralNetwork}
 
@@ -421,8 +418,6 @@ For each $j \in \{1,\dots,N\}$, let $C_j$ be the cardinality of $j$ in $c$.
 It is clear that $\sum_{j=1}^N C_i = n$.
 Then, they define two algorithms, the Voting Algorithm which Tends to Health (VAT2H) and the Voting Algorithm which Tends to Failure (VAT2F):
 
-% TODO: explain how this differs from the algorithm we used  (sum of probabilities instead of sum of classes)
-
 \begin{equation}\label{eq:vat2h}
     \text{VAT2H}(C) = 
     \begin{cases}
@@ -446,8 +441,8 @@ So, in order to tackle the problem they start by expanding the number of classes
 Then, after the network classifies a sequence of samples of the same disk in the classes from 1 to $N$ they use equation \ref{eq:vat2h} or \ref{eq:vat2f} to obtain the final binary classification output.
 
 They perform their tests on three different datasets corresponding to different models of hard drives.
-% TODO: add a source for these claims
-The neural network for each model is trained independently since, as discussed, not only the behavior of hard drives of different models can be different, but also, for different vendors, the values of the SMART attributes are not guaranteed to be compatible.
+The neural network for each model is trained independently since, as discussed, not only the behavior of hard drives of different models can be different \cite{Xu16}.
+Not only that, but, for different vendors, the values of the SMART attributes are not guaranteed to be compatible \cite{SamsungSSD}, meaning that the same attribute ID may denote different metrics.
 
 They obtained promising results of their approach.
 The FDR of their models was around 97\% while the FAR was almost always kept below 0.1\%.
@@ -476,9 +471,16 @@ From this, we can see that $\dfrac{e_i^{(l)}}{e_i^{(l+2)}} \propto \varphi '(u_i
 So, it is proportional to the product of two derivatives.
 We can exend this process to show that the impact induced by layer $l + m$ on layer $l$ must be scaled by the product of $m$ derivatives.
 
-% TODO: draw a schema representing backpropagation through time (just multiple copies of the same network)
-But, if we redraw our RNN to be represented by Figure , we see that the input of sample $t$ can be interpreted as being connected to the imput of sample $t'$ by $(t'-t+1)k$ layers.
-So the impact of the sample $t$ on sample $t'$ is proportional to $\prod_{i=1}{(t'-t+1)k}\varphi'(x_i)$.
+\begin{figure}
+    \begin{center}
+        \includegraphics[width=.5\linewidth]{BPTT.png}
+        \caption[Backpropagation Through Time]{Backpropagation Through Time interpretation of an RNN - \cite{Xu16}}
+        \label{fig:BPTT}
+    \end{center}
+\end{figure}
+
+But, if we redraw our RNN to be represented as in Figure \ref{fig:BPTT}, we see that the input of sample $t$ can be interpreted as being connected to the output of sample $t'$ by $(t'-t + 1)k$ layers, since it has to traverse the network with $k$ layers $t'-t+1$ times.
+So the impact of the sample $t$ on sample $t'$ is proportional to $\prod_{i=1}^{(t'-t)k}\varphi'(x_i)$.
 
 But, if the values of $\varphi'(x_i)$ are all smaller than 1, not only the scaling term will approach 0, but it will do so exponentially fast with respect to the distance between the two samples.
 
