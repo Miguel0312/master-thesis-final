@@ -562,9 +562,9 @@ Therefore, their motivation to use LSTMs is to detect patterns in text rather th
 The FDR they achieve with their LSTM-based approach is between $85.1\%$ and $87.5\%$.
 However it is not possible to compare it to the other results presented above since their problem is quite different from the detection of hard drive failures in data centers.
 
-\section{Other Techniques}
+\section{Additional State of the Art methods}
 
-There are three additional methods that have been used to tackle the hard drive failure prediction problem and that are worth mentioning.
+There are a few additional methods that have been used to tackle the hard drive failure prediction problem and that are worth mentioning.
 Since these approaches will not be implemented by our current work, we will limit ourselves to a briefer explanation of the theory behind them.
 
 \subsection{Random Forest}\label{subsec:randomforest}
@@ -572,19 +572,12 @@ Since these approaches will not be implemented by our current work, we will limi
 One of the problems faced by Decision Trees, specially when they become large is overfitting \cite{ying2019overview}.
 This is due to the fact that the split values for each attribute used by the tree are directy taken from the values on the training set.
 So, when the tree is deep and there are only a few training samples in a node, the splitting values will sharply follow the ones in the training set.
+This can lead to cases of overfitting \cite{Bramer2020}.
 
-Another way to explain this is that a Decision Tree can closely follow the patterns observed in the training set because it can choose the splitting threshold independently of the ancestor nodes in the tree, so it presents a small bias.
-But in Machine Learning there is a principle known as the Bias-Variance tradeoff that states that a model with low bias will present a high variance and vice-versa \cite{briscoe2011conceptual}.
-
-This implies that a Decision Tree will have a high variance.
-The consequence is that a small change on the training set can sharply change the performance of the model on unseen samples.
-
-In order to tackle this, the concept of Random Forests has been introduced \cite{ho1995random}.
+In order to tackle this, Random Forests has been introduced \cite{ho1995random}.
 The idea is to train multiple, independent Decision Trees at once, each one trained with a different subset of the training data.
 Notice that these subsets do not have to be disjoint, specially when the training set is relatively small.
-
 This approach reduces the probability of overfitting, since a sample will not be seen by some trees.
-This means that the model is less sensitive to small changes in the training set, which reduces the bias.
 
 Random Forests have performed well for a variety of tasks, ranging from image recognition to Alzheimer's disease detection and prediction \cite{shaik2019brief}.
 
@@ -637,6 +630,29 @@ When priority was giving to increasing the FDR, they obtained a FAR of $0.3\%$ b
 
 Support-Vector Machines, when compared to other approaches, present, therefore, a method that is able to achieve a smaller FAR.
 However, in contrast, it is not able to attain FDRs as good as other methods while keeping an acceptable FAR.
+
+\subsection{Linear Regression}
+
+An approach using one of the simplest statistical learning methods, linear regression, has been proposed for the Hard Drive Failure Preditction Problem.
+Yang et al. showed described a methdology to obtain good results with a linear regression model \cite{yang2015hard}.
+
+In order to allow a simple method to detect rather complex relationships as the ones that can occur between the value of SMART attributes, the focus of their work was on feature engineering.
+More specifically, they started by dividing values of each SMART attribute in different bins.
+Then, they depending on the bins occupied by the attributes of a hard drive, the SMART values were translated in a set of features.
+
+Since some specific combinations of bins were required for the requirements to assign a certain feature to a hard drive, the feature space was sparse.
+This means that a single disk did not satisfy the conditions to be assigned most of the features.
+
+The main drawback of this approach is the need for massive amounts of data.
+In their work they state that their dataset, consisting of more than 7 million samples, contains 500 times more samples of SMART attributes than any other work on this problem.
+Not only this data may be not trivial to obtain, but also it is accompanied by a necessity of a substantial computing infrastructure to process it.
+
+An important aspect of their approach is that no distinction was made between disks of different disk models.
+This is a sharp contrast with other research on the subject that explicitly train different machine learning models for different disk models \cite{Xu16} \cite{Shen18} \cite{Li14}. 
+
+Despite this limitation, their results were promising, showing an FDR of 97.8\% with an FAR of 0.3\%.
+However, they also showed that this huge amount of data is a non-negotiable requirement.
+For a subset that only included 1/512 of the original dataset samples, meaning that its size was comparable to the one in other works, even for an FDR of 0.5\%, the FDR is below 40\%, which is much worse than other work done on the same problem.
 
 \subsection{Convolutional Neural Networks}
 

@@ -396,7 +396,15 @@ When we increase the value of $N$, the number of samples of each class from $0$ 
 So, the model may be more biased towards the class $N-1$ since it has seen more samples with it.
 
 In order to reduce the impact of this bias, we propose a method that recombines the values in classes from $0$ to $N-2$.
-In this case we get:
+The first step is to use the softmax function, denoted by $\sigma$, to convert the values of $y_i[j]$ corresponding to the score of each class to a probability $p_i[j]$.
+
+\begin{equation}
+  p_i[j] = \sigma(y_i)[j] = \dfrac{e^{y_i[j]}}{\sum_{k=0}^{N-1}e^{y_i[k]}}
+\end{equation}
+
+Notice that this is a non-linear function and therefore the result of the class given by equation \ref{eq:modified_class} will be affected by it.
+Moreover, the values of $p_i[j]$ can be interpreted as a probability that the sample $i$ belongs to class $j$ since the property $\sum_{k=0}^{N-1}p_i[k] = 1$ is verified. 
+Then we can use this values to obtain a binary class from the probability of each one of the multiple classes as follows:
 
 \begin{equation}\label{eq:modified_class}
   C_i = 
@@ -406,7 +414,7 @@ In this case we get:
   \end{cases}
 \end{equation}
 
-We then make a histogram as before, but with only two components.
+We then make a histogram as before, but with only two bins.
 Finally, we apply the following formula that we will call the Score Based Voting Algorithm:
 
 \begin{equation}\label{eq:score_based_voting}
