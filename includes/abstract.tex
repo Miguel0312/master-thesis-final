@@ -1,3 +1,20 @@
 % !TeX spellcheck = en_US
 % !TeX encoding = UTF-8
 \chapter*{Abstract}
+
+Recently, users require an increasingly amount of storage in order to allow the multitude of online service available today.
+As the number and size of data centers increases, so does the need of automated tools for its maintenance.
+In particular, in order to prevent data loss and to ensure the continuity of the service hardware failures need to be predicted.
+
+Most of the hardware failures in such systems occur on the hard drive.
+As a consequence, vendors introduced a set of values that allow these disks to be monitored: the SMART attributes.
+Many machine learning based approaches have been proposed to handle this problem of hard drive failure problem.
+
+In the current work, we present some of the state of the art methods to tackle the problem at hand.
+We also implement five of these models presented in other works in order to objectively compare their performance on the same set under the same preprocessing steps.
+
+Finally, we leverage the fact that the sequence of SMART attributes for a disk form a time series in order to improve existing methods.
+We use the concept of Health Status in which the gradual deterioration of a hard drive is taken account and, consequently, the samples in the training set can be classified in multiple classes, not only ``Healthy'' or ``Failing''.
+In order to take further advantage of the time series aspect we implement, to the best of our knowledge, the first Long Short-Term Memory model to tackle the Hard Drive Failure Prediction Problem using its SMART attributes.
+
+\textbf{Keywords:} Hard drive failure prediction, SMART, health status, neural networks, recurrent neural networks, long short-term memory 
