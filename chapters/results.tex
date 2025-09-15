@@ -6,13 +6,13 @@ We use a dataset from a data center of Baidu Inc.
 It is a subset of the dataset used in \cite{Zhu13}.
 
 The reason for using only a subset is that due to GDPR limitations we do not have access to the Chinese website where the dataset is hosted.
-So, we use a sample from it made available on Kaggle \footnote{\url{https://www.kaggle.com/datasets/drtycoon/hdds-dataset-baidu-inc}}.
+So, we use a subset from it that is available on Kaggle \footnote{Dataset available at \url{https://www.kaggle.com/datasets/drtycoon/hdds-dataset-baidu-inc}}.
 
 Despite only having access to a subset, our dataset includes all the 433 failing disks on the original dataset, which is the most important aspect since in general this is the class with a much smaller amount of members.
-It also includes 5317 good disks.
+It also includes 5317 healthy disks.
 
 In the dataset, for each disk a sample is taken every hour.
-The observation period is of 7 days for good disks and 20 days for bad ones.
+The observation period is of 7 days for healthy disks and 20 days for failing ones.
 In total there are more than a million SMART attribute samples.
 
 The model of every disk is the same.
@@ -22,9 +22,9 @@ We can compute a change rate corresponding to each attribute, which allows us to
 
 \section{Binary Models}
 
-We first perform the experiments using the classical approach of binary classification, that is of using only two health status levels.
-The complete list of parameters for these experiments are specified on Appendix \ref{chap:config_files}.
-The results for each model is listed on Table \ref{table:results_binary}.
+We first perform the experiments using the classical approach of binary classification.
+As stated on \ref{sec:software}, the full list of hyperparameters is made available in our repository.
+The results for each model are listed on Table \ref{table:results_binary}.
 
 \begin{table}
   \begin{center}
@@ -39,7 +39,7 @@ The results for each model is listed on Table \ref{table:results_binary}.
     Regression Tree & 1.13 & 99.23 & 334.9 & 154.3 \\
     \hline
     \end{tabular}
-    \caption[Results Binary Models]{Results for binary models with standard parameters}
+    \caption[Results Binary Models]{Results for binary models with default hyperparameters}
     \label{table:results_binary}
   \end{center}
 \end{table}
@@ -63,21 +63,21 @@ We also show the distribution of the time in advance with which the failing disk
 \end{figure}
 
 The analysis we can make of these results is firstly that the three network models behave similarly.
-For these models, the RNN is the one that presents the best performance, since its FDR is the highest among the three and it obtains only a slightly higher FAR than the LSTM.
+For these models, the RNN is the one that presents the best performance, since its FDR is the highest among the three, and it obtains only a slightly higher FAR than the LSTM.
 
-The two Decision Tree models perform better than any of the network based models since they have a smaller FDR than any of the BPNN, RNN and LSTM while achieving the maximum FDR found over the three models.
-The Classification Tree is able to obtain a higher TIA with a smaller standard deviation than the Regression Tree, so it can be considered marginally better.
+The two decision tree models perform better than any of the network based models since they have a smaller FDR than any of the BPNN, RNN and LSTM while achieving the maximum FDR found over the three models.
+The classification tree is able to obtain a higher TIA with a smaller standard deviation than the regression tree, so it can be considered marginally better.
 
 The distribution of the TIA for the different models signals that all of them are capable of detecting signals of problems hundreds of hours in advance
 In practical terms, this means that the people responsible for managing the data centers will have plenty of time to swap the failing disks and prevent any data loss or disruption of service.
 
 The smallest value of the TIA for correctly identified disks in the test set over every model was 19 hours.
 This implies that no rushing is needed when a failure is predicted.
-The main risk lies instead on the disks that have not been detected.
+The main risk lies instead on the failures that have not been detected.
 
 The capacity of such models to be highly sensitive to failing disks in order to detect problems much before they occur while keeping an FAR below 2\% proves that all of them are powerful methods to tackle the problem at hand.
 
-Concerning the time to train and test the models, we have the Classification Trees being the fastest ones to train, taking 2 minutes on average.
+Concerning the time to train and test the models, we have the decision trees being the fastest ones to train, taking 2 minutes on average.
 The BPNN also takes a very short time, around 4 minutes.
 
 The RNN and LSTM take a little longer: on average 8 minutes.
@@ -89,10 +89,9 @@ No GPU acceleration was needed.
 
 We can compare our results to other experiments performed on the same dataset in \cite{Zhu13}, in which an FAR of 1.14\% and an FDR of 97.69\% obtained.
 In their experiments, the model used was a BPNN.
-They obtained the best results for the dataset we are working with using just the binary classification approach instead of the multiclass one. 
 
-Our Decision Tree Models outperform theirs, because they achieved a smaller FAR and a higher FDR.
-For the network models, we mostly obtained a better FDR but a worse FDR than them, even though the difference between the two experiments are not the same.
+Our decision tree models outperform theirs, since ours have achieved a smaller FAR and a higher FDR.
+For the neural network models, we mostly obtained a better FDR but a worse FDR than them, even though the difference between the two experiments are not the same.
 So there is a tradeoff between the two metrics which is to be expected.
 
 The advantage of our approach is that we can directly compare the performance of different models without introducing bias due to different datasets or different preprocessing steps.
@@ -103,7 +102,7 @@ Finally, we will show that the inclusion of the change rates of the SMART attrib
 \subsection{Feature Selection Algorithms}
 
 We have trained our different models using the different feature selection algorithms described on Subsection \ref{subsec:feature_selection}.
-We still used the default parameters presented on Appendix \ref{chap:config_files}, with the only modifications being on the \verb|feature_count| that was set to 15, to better observe if the algorithm really ranked higher the critical features,  and, of course, on \verb|feature_selection_algorithm|.
+We still keep the same hyperparameters as the experiments performed on the last section, with the only modifications being on the feature count that was set to 15, to better observe if the algorithm really ranked higher the critical features,  and, of course, on the feature selection algorithm.
 The results are displayed on Figure \ref{fig:fs_binary}.
 
 \begin{figure}
@@ -156,10 +155,10 @@ The results of this experiment are displayed on Table \ref{table:results_binary_
 \end{table}
 
 As we can see, the results are similar to the original ones.
-The FAR and the FDR of the RNN, Classification and Regression Trees did not change at all.
+The FAR and the FDR of the RNN, classification and regression trees did not change at all.
 The LSTM objectively improved, since it tied the lowest FAR we have found and increased its FDR compared to the case with only one vote. 
 
-Moreover, on all models the TIA decreased a little bit.
+Moreover, on almost all models the TIA decreased by a relatively small amount.
 This was expected due to the fact that now more than one sample is needed to classify a disk as failing, so it can be seen as more evidence that the hard drive is failing is needed before it is flagged as so.
 
 The fact that the FDR didn't change a lot was to be expected given the results displayed on Figures \ref{fig:tia_binary_network} and \ref{fig:tia_binary_tree}.
@@ -169,7 +168,7 @@ Therefore, the probability that a sequence with many samples that can be predict
 Thus, the decrease of the FDR is expected to be small, which is the result we obtained.
 
 For the LSTM, we obtained a result that at first seem counterintuitive.
-Even though with 7 votes more than one sample needs to be classified as bad in order to flag the disk as failing, we obtained a smaller FAR.
+Even though with 7 votes more than one sample needs to be classified as failing in order to flag the disk as failing, we obtained a smaller FAR.
 In other words, the number of disks flagged as failing was strictly smaller.
 
 But this is due to the method we use to do the voting.
@@ -197,7 +196,7 @@ Now, if we keep the vote count to 7 but increase the vote threshold to 0.8, we o
 \end{table}
 
 Again we observe a further decrease on the value of the FAR, the FDR and the TIA for some models.
-The Regression Tree is able to achieve an FAR as small as 0.69\% which is the smallest value we found for it.
+The regression tree is able to achieve an FAR as small as 0.69\% which is the smallest value we found for it.
 
 The most interesting approach of using a voting algorithm is that the value of the vote count and threshold can be modified without needing to retrain the model, which is not the case when changing other hyperparameters such as the feature count or the feature selection algorithm.
 Therefore, the voting method is a powerful and fast to use tool to fine tune the FAR-FDR trade off.
@@ -223,7 +222,7 @@ The results are displayed on table \ref{table:results_binary_no_change_rate}
     Regression Tree & 1.07 & 97.69 & 354.7 & 147.8 \\
     \hline
     \end{tabular}
-    \caption[Results Binary Models with Voting]{Results for binary models with Vote Count set to 7}
+    \caption[Results Binary Models with Voting, no Change Rate]{Results for binary models with Vote Count set to 7 without Change Rate features}
     \label{table:results_binary_no_change_rate}
   \end{center}
 \end{table}
@@ -231,20 +230,19 @@ The results are displayed on table \ref{table:results_binary_no_change_rate}
 Most notably, every model had a worse performance compared to the original version using the change rates.
 This shows that the change rate we computed carries information than can be used by the models to better learn the problem, both for the time sensitive and time insensitive models.
 
-Moreover, it is interesting to see that over all the models we presented in this section, the ones that had the best performance were the two Decision Tree ones with information about the change rates.
-The fact that they both Classification and Regression Trees are time insensitive implies that we can encode useful information about the problem in the form of change rates. 
+Moreover, it is interesting to see that over all the models we presented in this section, the ones that had the best performance were the two decision tree ones with information about the change rates.
+The fact that they both classification and regression trees are time insensitive implies that we can encode useful information about the problem in the form of change rates. 
 
 \section{Multiclass Models}
 
-The next step is to inverstigate the behavior of the multiclass models.
-Their hyperparameters are listed on Appendix \ref{chap:config_files}.
-Most importantly, we used as a base value a Health Status Count of 4.
+The next step is to investigate the behavior of the multiclass models.
+Most importantly, we used as a base value a health status Count of 4.
 
 The results of our experiment are displayed on Tables \ref{table:results_multiclass_score_one_vote} and \ref{table:results_multiclass_class_one_vote}, presenting the performance of the models when using the Score and Class Based Voting Algorithms respectively.
-All experiments were performed with a Health Status Count of 4 and a vote count of one.
+All experiments were performed with a health status Count of 4 and a vote count of one.
 
 Some modification on the hyperparameters were needed when compared to the binary models.
-For the Regression Tree, for instance, the maximum depth of the tree had to be increased to 15.
+For the regression tree, for instance, the maximum depth of the tree had to be increased to 15.
 
 Moreover, for the RNN and the LSTM models, the number of failing samples had to be increased to 96 to obtain a better granularity of the training samples corresponding to each class.
 This impacted the time required to train these models, but it was still around 40 minutes in an ordinary desktop computer's CPU, which is still manageable.
@@ -284,23 +282,25 @@ This impacted the time required to train these models, but it was still around 4
   \end{center}
 \end{table}
 
-For the Score Voting, we omit the results for the Classification Tree model.
-This is due to the fact that, for a Classification Tree, no score is assigned and therefore the Score Based Voting Algorithm cannot be applied.
+For the Score Voting, we omit the results for the classification tree model.
+This is due to the fact that, for a classification tree, no score is assigned, and therefore the Score Based Voting Algorithm cannot be applied.
 
 The results show that most multiclass models do not perform as well as their binary counterparts.
-The main exception being, of course, the Regression Tree model with Score Based Voting which is able to keep the same FDR with a smaller FAR than its binary version.
+The main exception being, of course, the regression tree model with Score Based Voting which is able to keep the same FDR with a smaller FAR than its binary version.
 
 If we compare the impact of the two voting algorithms, we observe that most models have a better performance using Class Based Voting for this scenario of using a Vote Count equal to 1.
 
 Our results conflict with the ones presented by \cite{Xu16} which concluded beyond any doubt that multiclass RNNs are the most performant multiclass method.
 This can be due multiple factors.
+Firstly, the datasets are not the same, as we only have access to a subset of the dataset used in \cite{Xu16}.
 
-Firstly, the datasets are not the same, as we only have access to a subset of the dataset used in \cite{Zhu13}.
-Secondly, the results we obtained for the three models we implemented that they also tested are much better than the ones they found.
-These three models are the binary and multiclass BPNN as well as the Classification Tree.
+Secondly, there were some models that us and them implemented.
+Namely, these are the binary and multiclass BPNN as well as the classification tree.
+These three models have results much closer to the ones we obtained with our multilevel RNN.
 
-This fact indicates that we made a more unbiased exploration and comparison of the different models.
-These results show the importance of the current work of more impartially comparing different models instead of trying to prove that a specific one is more powerful than others.
+
+This fact indicates that we made a more unbiased fine-tuning of the hyperparameters of the models.
+These results show the importance of the current work of more impartially comparing different models instead of trying to prove that a specific one performs better than others.
 
 \subsection{Voting}
 
@@ -346,34 +346,29 @@ If we compare these results with the ones in Tables \ref{table:results_multiclas
 The BPNN kept the same FDR but obtained a smaller FAR.
 The FAR when using Class Based Voting was slightly smaller.
 
-For the LSTM and Classification Tree, the FDR was improved, although the FAR increased by a noticeable amount.
+For the LSTM and classification tree, the FDR was improved, although the FAR increased by a noticeable amount.
 
 The RNN in particular improved the most by using the Class Based Voting.
 It achieved a better FAR and FDR than either the version using one vote and the one with 7 votes and Score Based Voting.
 
-The Regression Tree model was able to keep a great FDR equivalent to the best values we have obtained over all models we have explored.
+The regression tree model was able to keep a great FDR equivalent to the best values we have obtained over all models we have presented so far.
 At the same time, increasing the number of votes decreased the FAR, with our proposed Score Based Voting obtaining the smallest FAR.
 
 \subsection{Health Status Count}
 
 During our experiments, we noticed that increasing the number of different classed to 5 or 6 resulted in patterns that were more difficult for our models to learn.
-Specially for the RNN and LSTM models, the result of the experiment was highly dependent on the seed used.
+Specially for the RNN and LSTM, the result of the experiment was highly dependent on the seed used.
 
-This is mainly due to the fact that when increasing the Health Status Count there are two possible scenarios.
+This is mainly due to the fact that when increasing the health status count there are two possible scenarios.
 The first is that we decrease the number of samples per class.
-The only way to mitigate this is to increase the Number of Failing Samples, which results in the training set having less relevant samples since they will be taken far away from the critical moment of failure.
+The other option is to increase the Number of Failing Samples to mitigate the effect of the decrease of samples per class, which results in the training set having less relevant samples since they will be taken far away from the critical moment of failure.
 
 Either way, it may make it more difficult for our models to learn to predict failures.
-Indeed, we observe that for a Health Status Count of 3 or 4, our models are still able to perform well.
-On the other hand,  for a higher number of classes, the effects mentioned on the last paragraph override the benefits we gain by interpreting the problem from a multiclass point of view.
+Indeed, we observe that for a health status count of 3 or 4, our models are still able to perform well.
+On the other hand, for a higher number of classes, the effects mentioned on the last paragraph override the benefits we gain by interpreting the problem from a multiclass point of view.
 
-For every model, the performance increases up to some value of Health Status Count and then starts decreasing.
-This value can different for each one.
-
-This implies that the models' performance are highly sensitive to the value of Health Status Count.
+This implies that the models' performance are highly sensitive to the value of health status count.
 However, given that the ideal value is a small integer number, it is not very difficult to explore the space of possibilities to find the best one.
-
-% TODO: include the other voting algorithm
 
 On Tables \ref{table:results_multiclass_three_health_status_score_voting} and \ref{table:results_multiclass_three_health_status_class_voting} we display the results of our experiments when Health Status Count is set to 3 and with Score Based and Class Based Voting respectively.
 
@@ -412,14 +407,14 @@ On Tables \ref{table:results_multiclass_three_health_status_score_voting} and \r
   \end{center}
 \end{table}
 
-For the network based models with score based voting, reducing the Health Status Count caused an improvement when compared to the approach of using 4 Health Status as depicted on Tables \ref{table:results_multiclass_score_one_vote} and \ref{table:results_multiclass_score_multi_vote}.
-In the case of the RNN specifically, it achieved a FAR smaller than its binary counterpart, with the trade off being a slight worse FDR that is still acceptably high.
+For the network based models with score based voting, reducing the health status count from 4 to 3 resulted in an improvement.
+In the case of the RNN specifically, it achieved a FAR smaller than its binary counterpart, with the trade-off being a slight worse FDR that is still acceptably high.
 
 If we directly compare the impact of each voting algorithm we see that the network based models perform consistently better when using our proposed score based voting system.
 
-On the other hand, one of the most striking results we have obtained during this research is the Regression Tree that obtained a 100\% Failure Detection Rate while keeping an FAR small enough.
+On the other hand, one of the most striking results we have obtained during this research is the regression tree that obtained a 100\% failure detection rate while keeping a small FAR.
 In all published research we have found only one other model who reached an FDR of 100\%: the binary BPNN published in \cite{Zhu13}, which had an FAR of 2.26\%.
-However, our Regression Tree did so while dividing the FAR by almost 2.
+However, our regression tree did so while cutting the FAR in half.
 
 This is strong evidence of the power of our approach to modify the labeling of the samples to take into account their proximity to the moment of failure.
-So, the Health Status method can bring a significant improvement to the solution of the Hard Drive Failure Prediction.
+Therefore, the health status method can bring a significant improvement to the solution of the hard drive failure prediction problem.
