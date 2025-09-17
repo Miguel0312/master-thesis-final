@@ -199,7 +199,7 @@ Again we observe a further decrease on the value of the FAR, the FDR and the TIA
 The regression tree is able to achieve an FAR as small as 0.69\% which is the smallest value we found for it.
 
 The most interesting approach of using a voting algorithm is that the value of the vote count and threshold can be modified without needing to retrain the model, which is not the case when changing other hyperparameters such as the feature count or the feature selection algorithm.
-Therefore, the voting method is a powerful and fast to use tool to fine tune the FAR-FDR trade off.
+Therefore, the voting method is a powerful and fast to use tool to fine tune the FAR-FDR tradeoff.
 
 \subsection{Change Rate Impact}\label{subsec:change_rate_impact}
 
@@ -408,7 +408,7 @@ On Tables \ref{table:results_multiclass_three_health_status_score_voting} and \r
 \end{table}
 
 For the network based models with score based voting, reducing the health status count from 4 to 3 resulted in an improvement.
-In the case of the RNN specifically, it achieved a FAR smaller than its binary counterpart, with the trade-off being a slight worse FDR that is still acceptably high.
+In the case of the RNN specifically, it achieved a FAR smaller than its binary counterpart, with the tradeoff being a slight worse FDR that is still acceptably high.
 
 If we directly compare the impact of each voting algorithm we see that the network based models perform consistently better when using our proposed score based voting system.
 
